@@ -4639,3 +4639,85 @@ tbody tr:last-child td {
         font-size: 29px;
     }
 }
+.student-delete-btn {
+    background: #dc2626;
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.student-delete-btn:hover {
+    background: #b91c1c;
+}
+
+.student-delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+/* DRIVER DELETE BUTTON */
+
+.driver-delete-btn {
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.driver-delete-btn:hover {
+    background: #b91c1c;
+}
+
+.driver-delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+/* STOP DELETE BUTTON */
+
+.stop-delete-btn {
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.stop-delete-btn:hover {
+    background: #b91c1c;
+}
+
+.stop-delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+/* BUS DELETE BUTTON */
+
+.bus-delete-btn {
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.bus-delete-btn:hover {
+    background: #b91c1c;
+}
+
+.bus-delete-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

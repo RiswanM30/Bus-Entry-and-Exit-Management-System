@@ -350,6 +350,87 @@ def manage_buses():
 
 
 # ================================================
+# DELETE BUS
+# ================================================
+
+@app.route("/api/admin/buses/<int:bus_id>", methods=["DELETE"])
+@role_required("admin")
+def delete_bus(bus_id):
+
+    try:
+        with get_db_connection() as connection:
+
+            # Check whether bus exists
+            bus = connection.execute("""
+                SELECT bus_id, bus_number
+                FROM buses
+                WHERE bus_id = ?
+            """, (bus_id,)).fetchone()
+
+            if not bus:
+                return jsonify({
+                    "error": "Bus not found."
+                }), 404
+
+            # Check students assigned to this bus
+            student_count = connection.execute("""
+                SELECT COUNT(*) AS total
+                FROM students
+                WHERE bus_id = ?
+            """, (bus_id,)).fetchone()["total"]
+
+            # Check drivers assigned to this bus
+            driver_count = connection.execute("""
+                SELECT COUNT(*) AS total
+                FROM drivers
+                WHERE bus_id = ?
+            """, (bus_id,)).fetchone()["total"]
+
+            # Check stops registered for this bus
+            stop_count = connection.execute("""
+                SELECT COUNT(*) AS total
+                FROM stops
+                WHERE bus_id = ?
+            """, (bus_id,)).fetchone()["total"]
+
+            if student_count > 0 or driver_count > 0 or stop_count > 0:
+                return jsonify({
+                    "error": (
+                        "Cannot delete this bus because it has "
+                        "students, drivers, or stops linked to it. "
+                        "Remove or reassign those records first."
+                    )
+                }), 409
+
+            # Delete bus only when no linked records exist
+            connection.execute("""
+                DELETE FROM buses
+                WHERE bus_id = ?
+            """, (bus_id,))
+
+        return jsonify({
+            "message": (
+                f"Bus '{bus['bus_number']}' deleted successfully."
+            )
+        }), 200
+
+    except sqlite3.IntegrityError:
+        return jsonify({
+            "error": (
+                "This bus is linked to existing records "
+                "and cannot be deleted. Existing travel history "
+                "has been protected."
+            )
+        }), 409
+
+    except sqlite3.Error:
+        app.logger.exception("Bus deletion failed")
+
+        return jsonify({
+            "error": "Database error while deleting bus."
+        }), 500
+
+# ================================================
 # STOP MANAGEMENT
 # ================================================
 
@@ -448,6 +529,79 @@ def manage_stops():
             "message": "This stop name or stop order already exists for this bus."
         }), 409
 
+# ================================================
+# DELETE BUS STOP
+# ================================================
+
+@app.route("/api/admin/stops/<int:stop_id>", methods=["DELETE"])
+@role_required("admin")
+def delete_stop(stop_id):
+
+    try:
+        with get_db_connection() as connection:
+
+            # Check whether stop exists
+            stop = connection.execute("""
+                SELECT stop_id, stop_name
+                FROM stops
+                WHERE stop_id = ?
+            """, (stop_id,)).fetchone()
+
+            if not stop:
+                return jsonify({
+                    "error": "Stop not found."
+                }), 404
+
+            # Check boarding records using this stop
+            boarding_history = connection.execute("""
+                SELECT COUNT(*) AS total
+                FROM boarding_entries
+                WHERE stop_id = ?
+            """, (stop_id,)).fetchone()["total"]
+
+            # Check exit records using this stop
+            exit_history = connection.execute("""
+                SELECT COUNT(*) AS total
+                FROM exit_entries
+                WHERE exit_stop_id = ?
+            """, (stop_id,)).fetchone()["total"]
+
+            if boarding_history > 0 or exit_history > 0:
+                return jsonify({
+                    "error": (
+                        "Cannot delete this stop because "
+                        "it is linked to existing boarding or "
+                        "exit records. Travel history must be preserved."
+                    )
+                }), 409
+
+            # Delete stop
+            connection.execute("""
+                DELETE FROM stops
+                WHERE stop_id = ?
+            """, (stop_id,))
+
+        return jsonify({
+            "message": (
+                f"Stop '{stop['stop_name']}' deleted successfully."
+            )
+        }), 200
+
+    except sqlite3.IntegrityError:
+        return jsonify({
+            "error": (
+                "This stop is linked to another record "
+                "and cannot be deleted."
+            )
+        }), 409
+
+    except sqlite3.Error:
+        app.logger.exception("Stop deletion failed")
+
+        return jsonify({
+            "error": "Database error while deleting stop."
+        }), 500
+
 
 # ================================================
 # STUDENT MANAGEMENT
@@ -464,6 +618,7 @@ def admin_students():
 def manage_students():
 
     # VIEW STUDENTS
+    
 
     if request.method == "GET":
 
@@ -564,6 +719,85 @@ def manage_students():
         return jsonify({
             "message": "Roll number or username already exists."
         }), 409
+    except sqlite3.IntegrityError:
+
+        return jsonify({
+            "message": "Roll number or username already exists."
+        }), 409
+    
+# ================================================
+# DELETE STUDENT
+# ================================================
+
+@app.route("/api/admin/students/<int:student_id>", methods=["DELETE"])
+@role_required("admin")
+def delete_student(student_id):
+
+    try:
+        with get_db_connection() as connection:
+
+            # Check whether student exists
+            student = connection.execute("""
+                SELECT student_id, student_name
+                FROM students
+                WHERE student_id = ?
+            """, (student_id,)).fetchone()
+
+            if not student:
+                return jsonify({
+                    "error": "Student not found."
+                }), 404
+
+            # Protect existing boarding and exit history
+            history = connection.execute("""
+                SELECT COUNT(*) AS total
+                FROM boarding_entries
+                WHERE student_id = ?
+            """, (student_id,)).fetchone()["total"]
+
+            if history > 0:
+                return jsonify({
+                    "error": (
+                        "Cannot delete this student because "
+                        "travel records already exist. "
+                        "Existing travel history must be preserved."
+                    )
+                }), 409
+
+            # Delete linked student login account first
+            connection.execute("""
+                DELETE FROM users
+                WHERE student_id = ?
+                  AND role = 'student'
+            """, (student_id,))
+
+            # Delete student record
+            connection.execute("""
+                DELETE FROM students
+                WHERE student_id = ?
+            """, (student_id,))
+
+        return jsonify({
+            "message": (
+                f"Student {student['student_name']} "
+                "deleted successfully."
+            )
+        }), 200
+
+    except sqlite3.IntegrityError:
+        return jsonify({
+            "error": (
+                "Student cannot be deleted because "
+                "related records exist."
+            )
+        }), 409
+
+    except sqlite3.Error:
+        app.logger.exception("Student deletion failed")
+
+        return jsonify({
+            "error": "Database error while deleting student."
+        }), 500
 
 
 # ================================================
@@ -678,6 +912,80 @@ def manage_drivers():
         return jsonify({
             "message": "Username, phone, license number or bus assignment already exists."
         }), 409
+
+# ================================================
+# DELETE DRIVER
+# ================================================
+
+@app.route("/api/admin/drivers/<int:driver_id>", methods=["DELETE"])
+@role_required("admin")
+def delete_driver(driver_id):
+
+    try:
+        with get_db_connection() as connection:
+
+            # Check driver exists
+            driver = connection.execute("""
+                SELECT driver_id, driver_name
+                FROM drivers
+                WHERE driver_id = ?
+            """, (driver_id,)).fetchone()
+
+            if not driver:
+                return jsonify({
+                    "error": "Driver not found."
+                }), 404
+
+            # Check existing travel records
+            history = connection.execute("""
+                SELECT COUNT(*) AS total
+                FROM boarding_entries
+                WHERE driver_id = ?
+            """, (driver_id,)).fetchone()["total"]
+
+            if history > 0:
+                return jsonify({
+                    "error": (
+                        "Cannot delete this driver because "
+                        "travel records are linked to this driver. "
+                        "Existing records must be preserved."
+                    )
+                }), 409
+
+            # Delete linked driver login account
+            connection.execute("""
+                DELETE FROM users
+                WHERE driver_id = ?
+                  AND role = 'driver'
+            """, (driver_id,))
+
+            # Delete driver
+            connection.execute("""
+                DELETE FROM drivers
+                WHERE driver_id = ?
+            """, (driver_id,))
+
+        return jsonify({
+            "message": (
+                f"Driver {driver['driver_name']} "
+                "deleted successfully."
+            )
+        }), 200
+
+    except sqlite3.IntegrityError:
+        return jsonify({
+            "error": (
+                "Driver cannot be deleted because "
+                "related records exist."
+            )
+        }), 409
+
+    except sqlite3.Error:
+        app.logger.exception("Driver deletion failed")
+
+        return jsonify({
+            "error": "Database error while deleting driver."
+        }), 500
 
 
 # ================================================

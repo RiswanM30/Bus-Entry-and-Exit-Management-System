@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,29 +45,20 @@
 
             <div class="driver-field">
                 <label for="driverName">Driver Name</label>
-                <input id="driverName"
-                       name="driver_name"
-                       type="text"
-                       placeholder="Enter driver name"
-                       required>
+                <input id="driverName" name="driver_name"
+                       type="text" placeholder="Enter driver name" required>
             </div>
 
             <div class="driver-field">
                 <label for="driverPhone">Phone Number</label>
-                <input id="driverPhone"
-                       name="phone"
-                       type="tel"
-                       placeholder="Enter phone number"
-                       required>
+                <input id="driverPhone" name="phone"
+                       type="tel" placeholder="Enter phone number" required>
             </div>
 
             <div class="driver-field">
                 <label for="licenseNumber">License Number</label>
-                <input id="licenseNumber"
-                       name="license_number"
-                       type="text"
-                       placeholder="Enter license number"
-                       required>
+                <input id="licenseNumber" name="license_number"
+                       type="text" placeholder="Enter license number" required>
             </div>
 
             <div class="driver-field">
@@ -78,33 +70,27 @@
 
             <div class="driver-field">
                 <label for="driverUsername">Driver Username</label>
-                <input id="driverUsername"
-                       name="username"
-                       type="text"
-                       placeholder="Create username"
-                       required>
+                <input id="driverUsername" name="username"
+                       type="text" placeholder="Create username" required>
             </div>
 
             <div class="driver-field">
                 <label for="driverPassword">Password</label>
-                <input id="driverPassword"
-                       name="password"
-                       type="password"
-                       minlength="5"
-                       placeholder="Minimum 5 characters"
-                       required>
+                <input id="driverPassword" name="password"
+                       type="password" minlength="5"
+                       placeholder="Minimum 5 characters" required>
             </div>
 
             <div class="driver-form-actions">
-                <button type="submit" class="driver-submit">
+                <button type="submit" class="driver-submit"
+                        id="driverSubmit">
                     Create Driver Account
                 </button>
             </div>
 
         </form>
 
-        <p id="driverMessage"
-           class="driver-message"
+        <p id="driverMessage" class="driver-message"
            aria-live="polite"></p>
 
     </section>
@@ -115,10 +101,12 @@
         <div class="driver-panel-heading">
             <div>
                 <h2>Registered Drivers</h2>
-                <p>View drivers and their assigned bus details.</p>
+                <p>View and manage drivers and their assigned buses.</p>
             </div>
 
-            <span class="driver-record-label">DRIVER RECORDS</span>
+            <span class="driver-record-label">
+                DRIVER RECORDS: <span id="driverCount">0</span>
+            </span>
         </div>
 
         <div class="driver-table-wrapper">
@@ -130,6 +118,7 @@
                         <th>Phone</th>
                         <th>License Number</th>
                         <th>Assigned Bus</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
 
@@ -146,7 +135,18 @@
 </div>
 
 <script>
+
+// DISPLAY MESSAGE
+function showDriverMessage(message, type) {
+    const element = document.getElementById("driverMessage");
+    element.textContent = message;
+    element.className = "driver-message " + type;
+}
+
+
+// LOAD BUSES
 async function loadBuses() {
+
     const response = await fetch("/api/admin/buses");
 
     if (!response.ok) {
@@ -171,7 +171,10 @@ async function loadBuses() {
     });
 }
 
+
+// LOAD DRIVERS
 async function loadDrivers() {
+
     const response = await fetch("/api/admin/drivers");
 
     if (!response.ok) {
@@ -183,11 +186,14 @@ async function loadDrivers() {
 
     table.replaceChildren();
 
+    document.getElementById("driverCount").textContent =
+        drivers.length;
+
     if (drivers.length === 0) {
         const row = document.createElement("tr");
         const cell = document.createElement("td");
 
-        cell.colSpan = 5;
+        cell.colSpan = 6;
         cell.textContent = "No drivers registered yet.";
         cell.className = "driver-empty";
 
@@ -197,6 +203,7 @@ async function loadDrivers() {
     }
 
     drivers.forEach(driver => {
+
         const row = document.createElement("tr");
 
         [
@@ -211,17 +218,39 @@ async function loadDrivers() {
             row.appendChild(cell);
         });
 
+        // ACTION COLUMN
+        const actionCell = document.createElement("td");
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.textContent = "Delete";
+        deleteButton.className = "driver-delete-btn";
+
+        deleteButton.addEventListener("click", () => {
+            deleteDriver(
+                driver.driver_id,
+                driver.driver_name,
+                deleteButton
+            );
+        });
+
+        actionCell.appendChild(deleteButton);
+        row.appendChild(actionCell);
+
         table.appendChild(row);
     });
 }
 
+
+// CREATE DRIVER
 document.getElementById("driverForm").addEventListener(
     "submit",
-    async function(e) {
-        e.preventDefault();
+    async function(event) {
 
-        const message = document.getElementById("driverMessage");
-        const submitButton = this.querySelector('button[type="submit"]');
+        event.preventDefault();
+
+        const submitButton =
+            document.getElementById("driverSubmit");
 
         const data = Object.fromEntries(
             new FormData(this).entries()
@@ -231,6 +260,7 @@ document.getElementById("driverForm").addEventListener(
         submitButton.textContent = "Creating Account...";
 
         try {
+
             const response = await fetch("/api/admin/drivers", {
                 method: "POST",
                 headers: {
@@ -241,42 +271,112 @@ document.getElementById("driverForm").addEventListener(
 
             const result = await response.json();
 
-            message.textContent =
-                result.message || result.error || "Unable to create driver.";
-
-            message.className = response.ok
-                ? "driver-message success"
-                : "driver-message error";
-
-            if (response.ok) {
-                this.reset();
-                await loadDrivers();
+            if (!response.ok) {
+                showDriverMessage(
+                    result.message || result.error ||
+                    "Unable to create driver.",
+                    "error"
+                );
+                return;
             }
 
+            showDriverMessage(
+                result.message || "Driver account created successfully.",
+                "success"
+            );
+
+            this.reset();
+            await loadDrivers();
+
         } catch (error) {
-            message.textContent = error.message;
-            message.className = "driver-message error";
+
+            showDriverMessage(
+                "Server connection failed.",
+                "error"
+            );
 
         } finally {
+
             submitButton.disabled = false;
             submitButton.textContent = "Create Driver Account";
         }
     }
 );
 
+
+// DELETE DRIVER
+async function deleteDriver(driverId, driverName, button) {
+
+    const confirmed = confirm(
+        `Are you sure you want to delete driver ${driverName}?`
+    );
+
+    if (!confirmed) return;
+
+    button.disabled = true;
+    button.textContent = "Deleting...";
+
+    try {
+
+        const response = await fetch(
+            `/api/admin/drivers/${driverId}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+
+            showDriverMessage(
+                result.error || result.message ||
+                "Unable to delete driver.",
+                "error"
+            );
+
+            button.disabled = false;
+            button.textContent = "Delete";
+            return;
+        }
+
+        showDriverMessage(
+            result.message || "Driver deleted successfully.",
+            "success"
+        );
+
+        await loadDrivers();
+
+        // Refresh bus options if needed
+        await loadBuses();
+
+    } catch (error) {
+
+        showDriverMessage(
+            "Server connection failed.",
+            "error"
+        );
+
+        button.disabled = false;
+        button.textContent = "Delete";
+    }
+}
+
+
+// INITIALIZE PAGE
 async function initializeDriverPage() {
-    const message = document.getElementById("driverMessage");
 
     try {
         await loadBuses();
         await loadDrivers();
+
     } catch (error) {
-        message.textContent = error.message;
-        message.className = "driver-message error";
+        showDriverMessage(error.message, "error");
     }
 }
 
 initializeDriverPage();
+
 </script>
 
 </body>

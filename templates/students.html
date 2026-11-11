@@ -4,12 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Student Management</title>
+
     <link rel="stylesheet"
           href="{{ url_for('static', filename='css/style.css') }}">
+
     <link rel="stylesheet"
           href="{{ url_for('static', filename='css/app.css') }}">
-    
 </head>
 
 <body class="dashboard-page students-page">
@@ -37,6 +39,7 @@
                 <h2>Add New Student</h2>
                 <p>Enter student details and create a login account.</p>
             </div>
+
             <div class="student-panel-icon">＋</div>
         </div>
 
@@ -44,38 +47,42 @@
 
             <div class="student-field">
                 <label for="rollNumber">Roll Number</label>
-                <input id="rollNumber"
-                       name="roll_number"
-                       type="text"
-                       placeholder="Enter roll number"
-                       required>
+                <input
+                    id="rollNumber"
+                    name="roll_number"
+                    type="text"
+                    placeholder="Enter roll number"
+                    required>
             </div>
 
             <div class="student-field">
                 <label for="studentName">Student Name</label>
-                <input id="studentName"
-                       name="student_name"
-                       type="text"
-                       placeholder="Enter student name"
-                       required>
+                <input
+                    id="studentName"
+                    name="student_name"
+                    type="text"
+                    placeholder="Enter student name"
+                    required>
             </div>
 
             <div class="student-field">
                 <label for="department">Department</label>
-                <input id="department"
-                       name="department"
-                       type="text"
-                       placeholder="Enter department"
-                       required>
+                <input
+                    id="department"
+                    name="department"
+                    type="text"
+                    placeholder="Enter department"
+                    required>
             </div>
 
             <div class="student-field">
                 <label for="phone">Phone Number</label>
-                <input id="phone"
-                       name="phone"
-                       type="tel"
-                       placeholder="Enter phone number"
-                       required>
+                <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    placeholder="Enter phone number"
+                    required>
             </div>
 
             <div class="student-field">
@@ -87,32 +94,41 @@
 
             <div class="student-field">
                 <label for="studentUsername">Student Username</label>
-                <input id="studentUsername"
-                       name="username"
-                       type="text"
-                       placeholder="Create username"
-                       required>
+                <input
+                    id="studentUsername"
+                    name="username"
+                    type="text"
+                    placeholder="Create username"
+                    required>
             </div>
 
             <div class="student-field student-password-field">
                 <label for="studentPassword">Password</label>
-                <input id="studentPassword"
-                       name="password"
-                       type="password"
-                       minlength="5"
-                       placeholder="Minimum 5 characters"
-                       required>
+                <input
+                    id="studentPassword"
+                    name="password"
+                    type="password"
+                    minlength="5"
+                    placeholder="Minimum 5 characters"
+                    required>
             </div>
 
             <div class="student-form-actions">
-                <button type="submit" class="student-submit">
+                <button
+                    type="submit"
+                    class="student-submit"
+                    id="studentSubmit">
                     Create Student Account
                 </button>
             </div>
 
         </form>
 
-        <p id="studentMessage" class="student-message" aria-live="polite"></p>
+        <p
+            id="studentMessage"
+            class="student-message"
+            aria-live="polite">
+        </p>
 
     </section>
 
@@ -122,16 +138,19 @@
         <div class="student-panel-heading">
             <div>
                 <h2>Registered Students</h2>
-                <p>View the students registered in the system.</p>
+                <p>View and manage registered student accounts.</p>
             </div>
 
             <div class="student-count-label">
-                STUDENT RECORDS
+                STUDENT RECORDS:
+                <span id="studentCount">0</span>
             </div>
         </div>
 
         <div class="student-table-wrapper">
+
             <table class="student-table">
+
                 <thead>
                     <tr>
                         <th>Student ID</th>
@@ -140,11 +159,14 @@
                         <th>Department</th>
                         <th>Phone</th>
                         <th>Bus</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
 
                 <tbody id="studentTable"></tbody>
+
             </table>
+
         </div>
 
     </section>
@@ -156,103 +178,284 @@
 </div>
 
 <script>
+
+// DISPLAY MESSAGE
+function showMessage(message, type) {
+
+    const element = document.getElementById("studentMessage");
+
+    element.textContent = message;
+
+    element.className = "student-message " + type;
+}
+
+
+// LOAD AVAILABLE BUSES
 async function loadBuses() {
+
     const response = await fetch("/api/admin/buses");
 
     if (!response.ok) {
-        document.getElementById("studentMessage").textContent =
-            "Unable to load buses. Please check your login.";
+        showMessage("Unable to load buses.", "error");
         return;
     }
 
     const buses = await response.json();
+
     const select = document.getElementById("studentBus");
 
     select.replaceChildren();
 
     const defaultOption = document.createElement("option");
+
     defaultOption.value = "";
     defaultOption.textContent = "Select Bus";
+
     select.appendChild(defaultOption);
 
     buses.forEach(bus => {
+
         const option = document.createElement("option");
+
         option.value = bus.bus_id;
         option.textContent = bus.bus_number;
+
         select.appendChild(option);
+
     });
 }
 
+
+// LOAD REGISTERED STUDENTS
 async function loadStudents() {
-    const response = await fetch("/api/admin/students");
 
-    if (!response.ok) {
-        document.getElementById("studentMessage").textContent =
-            "Unable to load student records.";
-        return;
-    }
-
-    const students = await response.json();
     const table = document.getElementById("studentTable");
 
-    table.replaceChildren();
+    try {
 
-    students.forEach(student => {
-        const row = document.createElement("tr");
+        const response = await fetch("/api/admin/students");
 
-        [
-            student.student_id,
-            student.roll_number,
-            student.student_name,
-            student.department,
-            student.phone,
-            student.bus_number || "Not assigned"
-        ].forEach(value => {
+        if (!response.ok) {
+            showMessage("Unable to load student records.", "error");
+            return;
+        }
+
+        const students = await response.json();
+
+        table.replaceChildren();
+
+        document.getElementById("studentCount").textContent =
+            students.length;
+
+        if (students.length === 0) {
+
+            const row = document.createElement("tr");
+
             const cell = document.createElement("td");
-            cell.textContent = value ?? "";
+
+            cell.colSpan = 7;
+            cell.textContent = "No student records found.";
+
             row.appendChild(cell);
+            table.appendChild(row);
+
+            return;
+        }
+
+        students.forEach(student => {
+
+            const row = document.createElement("tr");
+
+            const values = [
+                student.student_id,
+                student.roll_number,
+                student.student_name,
+                student.department,
+                student.phone,
+                student.bus_number || "Not assigned"
+            ];
+
+            values.forEach(value => {
+
+                const cell = document.createElement("td");
+
+                cell.textContent = value ?? "";
+
+                row.appendChild(cell);
+
+            });
+
+            // ACTION COLUMN
+            const actionCell = document.createElement("td");
+
+            const deleteButton = document.createElement("button");
+
+            deleteButton.type = "button";
+            deleteButton.textContent = "Delete";
+            deleteButton.className = "student-delete-btn";
+
+            deleteButton.addEventListener("click", () => {
+
+                deleteStudent(
+                    student.student_id,
+                    student.student_name,
+                    deleteButton
+                );
+
+            });
+
+            actionCell.appendChild(deleteButton);
+
+            row.appendChild(actionCell);
+
+            table.appendChild(row);
+
         });
 
-        table.appendChild(row);
-    });
+    } catch (error) {
+
+        showMessage("Error loading student records.", "error");
+
+    }
 }
 
+
+// ADD NEW STUDENT
 document.getElementById("studentForm").addEventListener(
     "submit",
-    async function(e) {
+    async function(event) {
 
-        e.preventDefault();
+        event.preventDefault();
+
+        const button = document.getElementById("studentSubmit");
+
+        button.disabled = true;
+        button.textContent = "Creating...";
 
         const data = Object.fromEntries(
             new FormData(this).entries()
         );
 
-        const response = await fetch("/api/admin/students", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(data)
-        });
+        try {
 
-        const result = await response.json();
+            const response = await fetch("/api/admin/students", {
 
-        const message = document.getElementById("studentMessage");
+                method: "POST",
 
-        message.textContent = result.message || result.error;
-        message.className = response.ok
-            ? "student-message success"
-            : "student-message error";
+                headers: {
+                    "Content-Type": "application/json"
+                },
 
-        if (response.ok) {
+                body: JSON.stringify(data)
+
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+
+                showMessage(
+                    result.error || result.message || "Unable to create student.",
+                    "error"
+                );
+
+                return;
+            }
+
+            showMessage(
+                result.message || "Student account created successfully.",
+                "success"
+            );
+
             this.reset();
+
             await loadStudents();
+
+        } catch (error) {
+
+            showMessage("Server connection failed.", "error");
+
+        } finally {
+
+            button.disabled = false;
+            button.textContent = "Create Student Account";
+
         }
+
     }
 );
 
-loadBuses();
-loadStudents();
+
+// DELETE STUDENT
+async function deleteStudent(studentId, studentName, button) {
+
+    const confirmed = confirm(
+        "Are you sure you want to delete " +
+        studentName +
+        "?"
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Deleting...";
+
+    try {
+
+        const response = await fetch(
+            `/api/admin/students/${studentId}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+
+            showMessage(
+                result.error || result.message || "Unable to delete student.",
+                "error"
+            );
+
+            button.disabled = false;
+            button.textContent = "Delete";
+
+            return;
+        }
+
+        showMessage(
+            result.message || "Student deleted successfully.",
+            "success"
+        );
+
+        await loadStudents();
+
+    } catch (error) {
+
+        showMessage("Server connection failed.", "error");
+
+        button.disabled = false;
+        button.textContent = "Delete";
+
+    }
+
+}
+
+
+// INITIAL PAGE LOAD
+async function initializePage() {
+
+    await loadBuses();
+
+    await loadStudents();
+
+}
+
+initializePage();
+
 </script>
 
 </body>

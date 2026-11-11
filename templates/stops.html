@@ -28,7 +28,9 @@
         </a>
     </header>
 
+    <!-- ADD NEW STOP -->
     <section class="stop-panel">
+
         <div class="stop-panel-heading">
             <div class="stop-panel-icon">＋</div>
             <div>
@@ -48,45 +50,41 @@
 
             <div class="stop-field">
                 <label for="stopName">Stop Name</label>
-                <input
-                    type="text"
-                    id="stopName"
-                    name="stop_name"
-                    placeholder="Enter stop name"
-                    required
-                >
+                <input type="text" id="stopName"
+                       name="stop_name"
+                       placeholder="Enter stop name" required>
             </div>
 
             <div class="stop-field">
                 <label for="stopOrder">Stop Order</label>
-                <input
-                    type="number"
-                    id="stopOrder"
-                    name="stop_order"
-                    placeholder="Example: 1"
-                    min="1"
-                    required
-                >
+                <input type="number" id="stopOrder"
+                       name="stop_order"
+                       placeholder="Example: 1"
+                       min="1" required>
             </div>
 
             <div class="stop-form-actions">
-                <button type="submit" id="addStopButton" class="stop-submit">
+                <button type="submit" id="addStopButton"
+                        class="stop-submit">
                     Add Stop
                 </button>
             </div>
 
         </form>
 
-        <p id="stopMessage" class="stop-message" role="status"></p>
+        <p id="stopMessage" class="stop-message"
+           role="status" aria-live="polite"></p>
+
     </section>
 
+    <!-- VIEW AND DELETE STOPS -->
     <section class="stop-panel stop-list-panel">
 
         <div class="stop-panel-heading">
             <div class="stop-panel-icon">☷</div>
             <div>
                 <h2>View Bus Stops</h2>
-                <p>Select a bus to view its registered stops.</p>
+                <p>View and manage the registered stops for each bus.</p>
             </div>
         </div>
 
@@ -104,20 +102,24 @@
 
         <div class="stop-table-wrapper">
             <table class="stop-table">
+
                 <thead>
                     <tr>
                         <th>Stop ID</th>
                         <th>Stop Name</th>
                         <th>Stop Order</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
+
                 <tbody id="stopTable">
                     <tr>
-                        <td colspan="3" class="stop-empty">
+                        <td colspan="4" class="stop-empty">
                             Select a bus to view its stops.
                         </td>
                     </tr>
                 </tbody>
+
             </table>
         </div>
 
@@ -130,6 +132,7 @@
 </div>
 
 <script>
+
 const busSelect = document.getElementById("busSelect");
 const viewBus = document.getElementById("viewBus");
 const stopTable = document.getElementById("stopTable");
@@ -138,8 +141,22 @@ const stopCount = document.getElementById("stopCount");
 const stopForm = document.getElementById("stopForm");
 const addStopButton = document.getElementById("addStopButton");
 
+
+// DISPLAY MESSAGE
+function showMessage(message, type) {
+
+    stopMessage.textContent = message || "";
+
+    stopMessage.className =
+        "stop-message " + type;
+}
+
+
+// LOAD BUSES
 async function loadBuses() {
+
     try {
+
         const response = await fetch("/api/admin/buses");
 
         if (!response.ok) {
@@ -148,31 +165,65 @@ async function loadBuses() {
 
         const buses = await response.json();
 
-        busSelect.replaceChildren(new Option("Select Bus", ""));
+        busSelect.replaceChildren(
+            new Option("Select Bus", "")
+        );
+
         viewBus.replaceChildren(
             new Option("Select Bus to View Stops", "")
         );
 
         buses.forEach(bus => {
-            busSelect.add(new Option(bus.bus_number, bus.bus_id));
-            viewBus.add(new Option(bus.bus_number, bus.bus_id));
+
+            busSelect.add(
+                new Option(bus.bus_number, bus.bus_id)
+            );
+
+            viewBus.add(
+                new Option(bus.bus_number, bus.bus_id)
+            );
+
         });
 
     } catch (error) {
+
         showMessage(error.message, "error");
+
     }
 }
 
+
+// SHOW EMPTY TABLE MESSAGE
+function showEmptyRow(message) {
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 4;
+    cell.className = "stop-empty";
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    stopTable.appendChild(row);
+}
+
+
+// LOAD STOPS
 async function loadStops(busId) {
+
     stopTable.replaceChildren();
+
     stopCount.textContent = "0 Stops";
 
     if (!busId) {
+
         showEmptyRow("Select a bus to view its stops.");
         return;
+
     }
 
     try {
+
         const response = await fetch(
             `/api/admin/stops?bus_id=${encodeURIComponent(busId)}`
         );
@@ -187,51 +238,139 @@ async function loadStops(busId) {
             `${stops.length} ${stops.length === 1 ? "Stop" : "Stops"}`;
 
         if (stops.length === 0) {
+
             showEmptyRow("No stops registered for this bus.");
             return;
+
         }
 
         stops.forEach(stop => {
+
             const row = document.createElement("tr");
 
-            [stop.stop_id, stop.stop_name, stop.stop_order]
-                .forEach(value => {
-                    const cell = document.createElement("td");
-                    cell.textContent = value;
-                    row.appendChild(cell);
-                });
+            // STOP DETAILS
+            [
+                stop.stop_id,
+                stop.stop_name,
+                stop.stop_order
+            ].forEach(value => {
+
+                const cell = document.createElement("td");
+
+                cell.textContent = value ?? "";
+
+                row.appendChild(cell);
+
+            });
+
+            // ACTION COLUMN
+            const actionCell = document.createElement("td");
+
+            const deleteButton =
+                document.createElement("button");
+
+            deleteButton.type = "button";
+            deleteButton.textContent = "Delete";
+            deleteButton.className = "stop-delete-btn";
+
+            deleteButton.addEventListener("click", () => {
+
+                deleteStop(
+                    stop.stop_id,
+                    stop.stop_name,
+                    busId,
+                    deleteButton
+                );
+
+            });
+
+            actionCell.appendChild(deleteButton);
+
+            row.appendChild(actionCell);
 
             stopTable.appendChild(row);
+
         });
 
     } catch (error) {
+
         showEmptyRow(error.message);
+
     }
 }
 
-function showEmptyRow(message) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
 
-    cell.colSpan = 3;
-    cell.className = "stop-empty";
-    cell.textContent = message;
+// DELETE STOP
+async function deleteStop(stopId, stopName, busId, button) {
 
-    row.appendChild(cell);
-    stopTable.appendChild(row);
+    const confirmed = confirm(
+        `Are you sure you want to delete the stop "${stopName}"?`
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Deleting...";
+
+    try {
+
+        const response = await fetch(
+            `/api/admin/stops/${stopId}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+
+            showMessage(
+                result.error || result.message ||
+                "Unable to delete stop.",
+                "error"
+            );
+
+            button.disabled = false;
+            button.textContent = "Delete";
+
+            return;
+        }
+
+        showMessage(
+            result.message || "Stop deleted successfully.",
+            "success"
+        );
+
+        await loadStops(busId);
+
+    } catch (error) {
+
+        showMessage(
+            "Server connection failed.",
+            "error"
+        );
+
+        button.disabled = false;
+        button.textContent = "Delete";
+
+    }
 }
 
-function showMessage(message, type) {
-    stopMessage.textContent = message || "";
-    stopMessage.className = "stop-message " +
-        (type === "success" ? "success" : "error");
-}
 
-viewBus.addEventListener("change", function () {
+// BUS SELECTION
+viewBus.addEventListener("change", function() {
+
     loadStops(this.value);
+
 });
 
-stopForm.addEventListener("submit", async function (e) {
+
+// ADD NEW STOP
+stopForm.addEventListener("submit", async function(e) {
+
     e.preventDefault();
 
     addStopButton.disabled = true;
@@ -242,40 +381,67 @@ stopForm.addEventListener("submit", async function (e) {
     );
 
     try {
+
         const response = await fetch("/api/admin/stops", {
+
             method: "POST",
+
             headers: {
                 "Content-Type": "application/json"
             },
+
             body: JSON.stringify(data)
+
         });
 
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.message || result.error ||
-                "Unable to add stop.");
+
+            throw new Error(
+                result.message || result.error ||
+                "Unable to add stop."
+            );
+
         }
 
-        showMessage(result.message || "Stop added successfully.", "success");
+        showMessage(
+            result.message || "Stop added successfully.",
+            "success"
+        );
 
         const selectedBus = data.bus_id;
 
         this.reset();
+
         busSelect.value = selectedBus;
         viewBus.value = selectedBus;
 
         await loadStops(selectedBus);
 
     } catch (error) {
+
         showMessage(error.message, "error");
+
     } finally {
+
         addStopButton.disabled = false;
         addStopButton.textContent = "Add Stop";
+
     }
+
 });
 
-loadBuses();
+
+// INITIALIZE PAGE
+async function initializePage() {
+
+    await loadBuses();
+
+}
+
+initializePage();
+
 </script>
 
 </body>

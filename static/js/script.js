@@ -1,4 +1,3 @@
-
 const loginForm = document.getElementById("loginForm");
 
 if (loginForm) {

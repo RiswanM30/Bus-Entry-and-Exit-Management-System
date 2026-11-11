@@ -1,4 +1,3 @@
-
 from getpass import getpass
 from werkzeug.security import generate_password_hash
 from database import get_db_connection, initialize_database

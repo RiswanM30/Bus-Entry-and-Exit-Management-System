@@ -1,0 +1,284 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Management</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="dashboard-page drivers-page">
+
+<div class="main-content driver-main">
+
+    <!-- PAGE HEADER -->
+    <header class="driver-header">
+        <div>
+            <span class="page-label">ADMINISTRATION</span>
+            <h1>Driver Management</h1>
+            <p>Register drivers and manage their assigned buses.</p>
+        </div>
+
+        <a href="/admin/dashboard" class="back-dashboard">
+            ← Back to Dashboard
+        </a>
+    </header>
+
+    <!-- ADD DRIVER FORM -->
+    <section class="driver-panel">
+
+        <div class="driver-panel-heading">
+            <div>
+                <h2>Add New Driver</h2>
+                <p>Enter driver information and create a login account.</p>
+            </div>
+            <div class="driver-panel-icon">＋</div>
+        </div>
+
+        <form id="driverForm" class="driver-form">
+
+            <div class="driver-field">
+                <label for="driverName">Driver Name</label>
+                <input id="driverName"
+                       name="driver_name"
+                       type="text"
+                       placeholder="Enter driver name"
+                       required>
+            </div>
+
+            <div class="driver-field">
+                <label for="driverPhone">Phone Number</label>
+                <input id="driverPhone"
+                       name="phone"
+                       type="tel"
+                       placeholder="Enter phone number"
+                       required>
+            </div>
+
+            <div class="driver-field">
+                <label for="licenseNumber">License Number</label>
+                <input id="licenseNumber"
+                       name="license_number"
+                       type="text"
+                       placeholder="Enter license number"
+                       required>
+            </div>
+
+            <div class="driver-field">
+                <label for="driverBus">Assign Bus</label>
+                <select name="bus_id" id="driverBus" required>
+                    <option value="">Select Bus</option>
+                </select>
+            </div>
+
+            <div class="driver-field">
+                <label for="driverUsername">Driver Username</label>
+                <input id="driverUsername"
+                       name="username"
+                       type="text"
+                       placeholder="Create username"
+                       required>
+            </div>
+
+            <div class="driver-field">
+                <label for="driverPassword">Password</label>
+                <input id="driverPassword"
+                       name="password"
+                       type="password"
+                       minlength="8"
+                       placeholder="Minimum 8 characters"
+                       required>
+            </div>
+
+            <div class="driver-form-actions">
+                <button type="submit" class="driver-submit">
+                    Create Driver Account
+                </button>
+            </div>
+
+        </form>
+
+        <p id="driverMessage"
+           class="driver-message"
+           aria-live="polite"></p>
+
+    </section>
+
+    <!-- REGISTERED DRIVERS -->
+    <section class="driver-panel registered-driver-panel">
+
+        <div class="driver-panel-heading">
+            <div>
+                <h2>Registered Drivers</h2>
+                <p>View drivers and their assigned bus details.</p>
+            </div>
+
+            <span class="driver-record-label">DRIVER RECORDS</span>
+        </div>
+
+        <div class="driver-table-wrapper">
+            <table class="driver-table">
+                <thead>
+                    <tr>
+                        <th>Driver ID</th>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>License Number</th>
+                        <th>Assigned Bus</th>
+                    </tr>
+                </thead>
+
+                <tbody id="driverTable"></tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <footer class="driver-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+async function loadBuses() {
+    const response = await fetch("/api/admin/buses");
+
+    if (!response.ok) {
+        throw new Error("Unable to load bus details.");
+    }
+
+    const buses = await response.json();
+    const select = document.getElementById("driverBus");
+
+    select.replaceChildren();
+
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "Select Bus";
+    select.appendChild(defaultOption);
+
+    buses.forEach(bus => {
+        const option = document.createElement("option");
+        option.value = bus.bus_id;
+        option.textContent = bus.bus_number;
+        select.appendChild(option);
+    });
+}
+
+async function loadDrivers() {
+    const response = await fetch("/api/admin/drivers");
+
+    if (!response.ok) {
+        throw new Error("Unable to load driver records.");
+    }
+
+    const drivers = await response.json();
+    const table = document.getElementById("driverTable");
+
+    table.replaceChildren();
+
+    if (drivers.length === 0) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+
+        cell.colSpan = 5;
+        cell.textContent = "No drivers registered yet.";
+        cell.className = "driver-empty";
+
+        row.appendChild(cell);
+        table.appendChild(row);
+        return;
+    }
+
+    drivers.forEach(driver => {
+        const row = document.createElement("tr");
+
+        [
+            driver.driver_id,
+            driver.driver_name,
+            driver.phone,
+            driver.license_number,
+            driver.bus_number || "Not assigned"
+        ].forEach(value => {
+            const cell = document.createElement("td");
+            cell.textContent = value ?? "";
+            row.appendChild(cell);
+        });
+
+        table.appendChild(row);
+    });
+}
+
+document.getElementById("driverForm").addEventListener(
+    "submit",
+    async function(e) {
+        e.preventDefault();
+
+        const message = document.getElementById("driverMessage");
+        const submitButton = this.querySelector('button[type="submit"]');
+
+        const data = Object.fromEntries(
+            new FormData(this).entries()
+        );
+
+        submitButton.disabled = true;
+        submitButton.textContent = "Creating Account...";
+
+        try {
+            const response = await fetch("/api/admin/drivers", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            message.textContent =
+                result.message || result.error || "Unable to create driver.";
+
+            message.className = response.ok
+                ? "driver-message success"
+                : "driver-message error";
+
+            if (response.ok) {
+                this.reset();
+                await loadDrivers();
+            }
+
+        } catch (error) {
+            message.textContent = error.message;
+            message.className = "driver-message error";
+
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = "Create Driver Account";
+        }
+    }
+);
+
+async function initializeDriverPage() {
+    const message = document.getElementById("driverMessage");
+
+    try {
+        await loadBuses();
+        await loadDrivers();
+    } catch (error) {
+        message.textContent = error.message;
+        message.className = "driver-message error";
+    }
+}
+
+initializeDriverPage();
+</script>
+
+</body>
+</html>

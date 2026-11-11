@@ -1,0 +1,290 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stop-wise Student Tracking</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="tracking-page">
+
+<div class="tracking-main">
+
+    <header class="tracking-header">
+        <div>
+            <span class="page-label">ADMINISTRATION</span>
+            <h1>Stop-wise Student Tracking</h1>
+            <p>Monitor student boarding and exit details for each bus.</p>
+        </div>
+
+        <a href="/admin/dashboard" class="back-dashboard">
+            ← Back to Dashboard
+        </a>
+    </header>
+
+    <section class="tracking-panel">
+
+        <div class="tracking-panel-heading">
+            <div class="tracking-icon">⌕</div>
+            <div>
+                <h2>Filter Student Records</h2>
+                <p>Choose a bus and stop to view student details.</p>
+            </div>
+        </div>
+
+        <div class="tracking-filters">
+
+            <div class="tracking-field">
+                <label for="busFilter">Select Bus</label>
+                <select id="busFilter">
+                    <option value="">Select Bus</option>
+                </select>
+            </div>
+
+            <div class="tracking-field">
+                <label for="stopFilter">Select Stop</label>
+                <select id="stopFilter">
+                    <option value="">All Stops</option>
+                </select>
+            </div>
+
+            <button type="button" id="searchTracking"
+                    class="tracking-search-btn">
+                Search Records
+            </button>
+
+        </div>
+    </section>
+
+    <section class="tracking-panel">
+
+        <div class="tracking-results-heading">
+            <div>
+                <h2>Student Details</h2>
+                <p>Boarding information and current travel status.</p>
+            </div>
+
+            <span id="totalCount" class="tracking-count">
+                Select a bus to view students.
+            </span>
+        </div>
+
+        <div class="tracking-table-wrapper">
+            <table class="tracking-table">
+                <thead>
+                    <tr>
+                        <th>Roll Number</th>
+                        <th>Student Name</th>
+                        <th>Boarding Stop</th>
+                        <th>Boarding Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody id="studentTable">
+                    <tr>
+                        <td colspan="5" class="tracking-empty">
+                            Please select a bus.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <footer class="tracking-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+const busFilter = document.getElementById("busFilter");
+const stopFilter = document.getElementById("stopFilter");
+const studentTable = document.getElementById("studentTable");
+const totalCount = document.getElementById("totalCount");
+const searchButton = document.getElementById("searchTracking");
+
+function showEmptyRow(message) {
+    studentTable.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 5;
+    cell.className = "tracking-empty";
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    studentTable.appendChild(row);
+}
+
+async function loadTracking() {
+
+    const busId = busFilter.value;
+    const selectedStop = stopFilter.value;
+
+    if (!busId) {
+        totalCount.textContent = "Please select a bus.";
+        showEmptyRow("Please select a bus to view students.");
+        return;
+    }
+
+    const params = new URLSearchParams({
+        bus_id: busId
+    });
+
+    if (selectedStop) {
+        params.append("stop_id", selectedStop);
+    }
+
+    searchButton.disabled = true;
+    searchButton.textContent = "Loading...";
+
+    try {
+        const response = await fetch(
+            `/api/admin/stop-wise?${params.toString()}`
+        );
+
+        if (!response.ok) {
+            throw new Error("Unable to load student details.");
+        }
+
+        const data = await response.json();
+
+        // Update stop dropdown while retaining the selected stop.
+        stopFilter.replaceChildren(
+            new Option("All Stops", "")
+        );
+
+        data.stops.forEach(stop => {
+            stopFilter.add(
+                new Option(
+                    `${stop.stop_order}. ${stop.stop_name}`,
+                    stop.stop_id
+                )
+            );
+        });
+
+        if (data.stops.some(stop =>
+            String(stop.stop_id) === selectedStop
+        )) {
+            stopFilter.value = selectedStop;
+        }
+
+        const students = data.students || [];
+
+        totalCount.textContent =
+            `Total Students: ${students.length}`;
+
+        studentTable.replaceChildren();
+
+        if (students.length === 0) {
+            showEmptyRow("No students found for this selection.");
+            return;
+        }
+
+        students.forEach(student => {
+
+            const row = document.createElement("tr");
+
+            const values = [
+                student.roll_number,
+                student.student_name,
+                student.boarding_stop || "-",
+                student.entry_time || "-"
+            ];
+
+            values.forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "-";
+                row.appendChild(cell);
+            });
+
+            // Status badge
+            const statusCell = document.createElement("td");
+            const statusBadge = document.createElement("span");
+
+            const status = student.boarding_status || "Not Boarded";
+
+            statusBadge.textContent = status;
+            statusBadge.className = "tracking-status";
+
+            if (status === "Boarded") {
+                statusBadge.classList.add("tracking-boarded");
+            } else if (status === "Exited") {
+                statusBadge.classList.add("tracking-exited");
+            } else {
+                statusBadge.classList.add("tracking-not-boarded");
+            }
+
+            statusCell.appendChild(statusBadge);
+            row.appendChild(statusCell);
+
+            studentTable.appendChild(row);
+        });
+
+    } catch (error) {
+        totalCount.textContent = error.message;
+        showEmptyRow(error.message);
+    } finally {
+        searchButton.disabled = false;
+        searchButton.textContent = "Search Records";
+    }
+}
+
+async function loadBuses() {
+    try {
+        const response = await fetch("/api/admin/stop-wise");
+
+        if (!response.ok) {
+            throw new Error("Unable to load buses.");
+        }
+
+        const data = await response.json();
+
+        busFilter.replaceChildren(
+            new Option("Select Bus", "")
+        );
+
+        (data.buses || []).forEach(bus => {
+            busFilter.add(
+                new Option(bus.bus_number, bus.bus_id)
+            );
+        });
+
+    } catch (error) {
+        totalCount.textContent = error.message;
+    }
+}
+
+busFilter.addEventListener("change", () => {
+    stopFilter.value = "";
+
+    if (busFilter.value) {
+        loadTracking();
+    } else {
+        totalCount.textContent = "Select a bus to view students.";
+        stopFilter.replaceChildren(
+            new Option("All Stops", "")
+        );
+        showEmptyRow("Please select a bus.");
+    }
+});
+
+searchButton.addEventListener("click", loadTracking);
+
+stopFilter.addEventListener("change", loadTracking);
+
+loadBuses();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,282 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stop Management</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="stops-page">
+
+<div class="stop-main">
+
+    <header class="stop-header">
+        <div>
+            <span class="page-label">ADMINISTRATION</span>
+            <h1>Stop Management</h1>
+            <p>Add and organize stops for each bus.</p>
+        </div>
+
+        <a href="/admin/dashboard" class="back-dashboard">
+            ← Back to Dashboard
+        </a>
+    </header>
+
+    <section class="stop-panel">
+        <div class="stop-panel-heading">
+            <div class="stop-panel-icon">＋</div>
+            <div>
+                <h2>Add New Stop</h2>
+                <p>Enter the bus and stop details below.</p>
+            </div>
+        </div>
+
+        <form id="stopForm" class="stop-form">
+
+            <div class="stop-field">
+                <label for="busSelect">Select Bus</label>
+                <select name="bus_id" id="busSelect" required>
+                    <option value="">Select Bus</option>
+                </select>
+            </div>
+
+            <div class="stop-field">
+                <label for="stopName">Stop Name</label>
+                <input
+                    type="text"
+                    id="stopName"
+                    name="stop_name"
+                    placeholder="Enter stop name"
+                    required
+                >
+            </div>
+
+            <div class="stop-field">
+                <label for="stopOrder">Stop Order</label>
+                <input
+                    type="number"
+                    id="stopOrder"
+                    name="stop_order"
+                    placeholder="Example: 1"
+                    min="1"
+                    required
+                >
+            </div>
+
+            <div class="stop-form-actions">
+                <button type="submit" id="addStopButton" class="stop-submit">
+                    Add Stop
+                </button>
+            </div>
+
+        </form>
+
+        <p id="stopMessage" class="stop-message" role="status"></p>
+    </section>
+
+    <section class="stop-panel stop-list-panel">
+
+        <div class="stop-panel-heading">
+            <div class="stop-panel-icon">☷</div>
+            <div>
+                <h2>View Bus Stops</h2>
+                <p>Select a bus to view its registered stops.</p>
+            </div>
+        </div>
+
+        <div class="stop-view-filter">
+            <label for="viewBus">Select Bus</label>
+            <select id="viewBus">
+                <option value="">Select Bus to View Stops</option>
+            </select>
+        </div>
+
+        <div class="stop-record-heading">
+            <h3>Registered Stops</h3>
+            <span id="stopCount">0 Stops</span>
+        </div>
+
+        <div class="stop-table-wrapper">
+            <table class="stop-table">
+                <thead>
+                    <tr>
+                        <th>Stop ID</th>
+                        <th>Stop Name</th>
+                        <th>Stop Order</th>
+                    </tr>
+                </thead>
+                <tbody id="stopTable">
+                    <tr>
+                        <td colspan="3" class="stop-empty">
+                            Select a bus to view its stops.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <footer class="stop-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+const busSelect = document.getElementById("busSelect");
+const viewBus = document.getElementById("viewBus");
+const stopTable = document.getElementById("stopTable");
+const stopMessage = document.getElementById("stopMessage");
+const stopCount = document.getElementById("stopCount");
+const stopForm = document.getElementById("stopForm");
+const addStopButton = document.getElementById("addStopButton");
+
+async function loadBuses() {
+    try {
+        const response = await fetch("/api/admin/buses");
+
+        if (!response.ok) {
+            throw new Error("Unable to load buses.");
+        }
+
+        const buses = await response.json();
+
+        busSelect.replaceChildren(new Option("Select Bus", ""));
+        viewBus.replaceChildren(
+            new Option("Select Bus to View Stops", "")
+        );
+
+        buses.forEach(bus => {
+            busSelect.add(new Option(bus.bus_number, bus.bus_id));
+            viewBus.add(new Option(bus.bus_number, bus.bus_id));
+        });
+
+    } catch (error) {
+        showMessage(error.message, "error");
+    }
+}
+
+async function loadStops(busId) {
+    stopTable.replaceChildren();
+    stopCount.textContent = "0 Stops";
+
+    if (!busId) {
+        showEmptyRow("Select a bus to view its stops.");
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/admin/stops?bus_id=${encodeURIComponent(busId)}`
+        );
+
+        if (!response.ok) {
+            throw new Error("Unable to load stops.");
+        }
+
+        const stops = await response.json();
+
+        stopCount.textContent =
+            `${stops.length} ${stops.length === 1 ? "Stop" : "Stops"}`;
+
+        if (stops.length === 0) {
+            showEmptyRow("No stops registered for this bus.");
+            return;
+        }
+
+        stops.forEach(stop => {
+            const row = document.createElement("tr");
+
+            [stop.stop_id, stop.stop_name, stop.stop_order]
+                .forEach(value => {
+                    const cell = document.createElement("td");
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+
+            stopTable.appendChild(row);
+        });
+
+    } catch (error) {
+        showEmptyRow(error.message);
+    }
+}
+
+function showEmptyRow(message) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 3;
+    cell.className = "stop-empty";
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    stopTable.appendChild(row);
+}
+
+function showMessage(message, type) {
+    stopMessage.textContent = message || "";
+    stopMessage.className = "stop-message " +
+        (type === "success" ? "success" : "error");
+}
+
+viewBus.addEventListener("change", function () {
+    loadStops(this.value);
+});
+
+stopForm.addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    addStopButton.disabled = true;
+    addStopButton.textContent = "Adding...";
+
+    const data = Object.fromEntries(
+        new FormData(this).entries()
+    );
+
+    try {
+        const response = await fetch("/api/admin/stops", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || result.error ||
+                "Unable to add stop.");
+        }
+
+        showMessage(result.message || "Stop added successfully.", "success");
+
+        const selectedBus = data.bus_id;
+
+        this.reset();
+        busSelect.value = selectedBus;
+        viewBus.value = selectedBus;
+
+        await loadStops(selectedBus);
+
+    } catch (error) {
+        showMessage(error.message, "error");
+    } finally {
+        addStopButton.disabled = false;
+        addStopButton.textContent = "Add Stop";
+    }
+});
+
+loadBuses();
+</script>
+
+</body>
+</html>

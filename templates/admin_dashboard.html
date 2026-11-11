@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | College Bus Management</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"> -->
+    <link rel="stylesheet"
+      href="{{ url_for('static', filename='css/app.css') }}">
+
+</head>
+
+<body class="dashboard-page">
+
+<div class="admin-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="admin-sidebar offcanvas-lg offcanvas-start"
+           tabindex="-1"
+           id="adminSidebar"
+           aria-labelledby="adminSidebarLabel">
+
+        <div class="offcanvas-header admin-brand">
+            <div>
+                <h2 id="adminSidebarLabel">🚌 College Bus</h2>
+                <small>Management System</small>
+            </div>
+            <button type="button"
+                    class="btn-close btn-close-white d-lg-none"
+                    data-bs-dismiss="offcanvas"
+                    data-bs-target="#adminSidebar"
+                    aria-label="Close"></button>
+        </div>
+
+        <div class="offcanvas-body admin-sidebar-body">
+
+            <p class="admin-nav-heading">MAIN MENU</p>
+
+            <nav class="admin-nav">
+                <a class="active" href="/admin/dashboard">
+                    <span>▦</span> Dashboard
+                </a>
+                <a href="/admin/students">
+                    <span>♙</span> Students
+                </a>
+                <a href="/admin/drivers">
+                    <span>♧</span> Drivers
+                </a>
+                <a href="/admin/buses">
+                    <span>▰</span> Buses
+                </a>
+                <a href="/admin/stops">
+                    <span>⌖</span> Bus Stops
+                </a>
+                <a href="/admin/travel-records">
+                    <span>▤</span> Travel Records
+                </a>
+                <a href="/admin/stop-wise">
+                    <span>⌖</span> Stop-wise Students
+                </a>
+                <a href="/admin/reports">
+                    <span>▥</span> Reports
+                </a>
+            </nav>
+
+            <div class="admin-sidebar-bottom">
+                <a href="/logout">
+                    <span>↪</span> Logout
+                </a>
+            </div>
+
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="admin-main">
+
+        <!-- TOPBAR -->
+        <header class="admin-topbar">
+
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn admin-menu-button d-lg-none"
+                        type="button"
+                        data-bs-toggle="offcanvas"
+                        data-bs-target="#adminSidebar"
+                        aria-controls="adminSidebar">
+                    ☰
+                </button>
+
+                <div>
+                    <h1>Admin Dashboard</h1>
+                    <p>College Bus Entry and Exit Management</p>
+                </div>
+            </div>
+
+            <div class="admin-user">
+                <div class="admin-avatar">A</div>
+                <div>
+                    <strong>{{ session.get("username") }}</strong>
+                    <small>Administrator</small>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- WELCOME SECTION -->
+        <section class="admin-welcome">
+            <div>
+                <span class="admin-welcome-label">ADMINISTRATION</span>
+                <h2>Welcome, Administrator!</h2>
+                <p>Monitor and manage your college bus operations from one place.</p>
+            </div>
+            <div class="admin-welcome-icon">🚌</div>
+        </section>
+
+        <!-- STATISTICS -->
+        <section class="overview-section">
+
+    <div class="overview-heading">
+        <h2>System Overview</h2>
+        <p>A quick summary of college bus operations</p>
+    </div>
+
+    <div class="overview-grid">
+
+        <div class="overview-card">
+            <div class="overview-icon blue">ST</div>
+            <div class="overview-details">
+                <p>Total Students</p>
+                <h3 id="totalStudents">0</h3>
+                <small>Registered students</small>
+            </div>
+        </div>
+
+        <div class="overview-card">
+            <div class="overview-icon green">BU</div>
+            <div class="overview-details">
+                <p>Total Buses</p>
+                <h3 id="totalBuses">0</h3>
+                <small>Available buses</small>
+            </div>
+        </div>
+
+        <div class="overview-card">
+            <div class="overview-icon purple">DR</div>
+            <div class="overview-details">
+                <p>Total Drivers</p>
+                <h3 id="totalDrivers">0</h3>
+                <small>Registered drivers</small>
+            </div>
+        </div>
+
+        <div class="overview-card">
+            <div class="overview-icon orange">IN</div>
+            <div class="overview-details">
+                <p>Today's Boarding</p>
+                <h3 id="todayBoardings">0</h3>
+                <small>Students boarded today</small>
+            </div>
+        </div>
+
+        <div class="overview-card">
+            <div class="overview-icon red">OUT</div>
+            <div class="overview-details">
+                <p>Today's Exit</p>
+                <h3 id="todayExits">0</h3>
+                <small>Students exited today</small>
+            </div>
+        </div>
+
+        <div class="overview-card">
+            <div class="overview-icon teal">ON</div>
+            <div class="overview-details">
+                <p>Currently On Bus</p>
+                <h3 id="currentlyOnBus">0</h3>
+                <small>Active bus passengers</small>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+        <!-- MANAGEMENT MODULES -->
+        <section class="admin-modules-section">
+
+            <div class="admin-section-heading">
+                <div>
+                    <h2>Management Modules</h2>
+                    <p>Select a module to manage the system.</p>
+                </div>
+            </div>
+
+            <div class="row g-3">
+
+                <div class="col-12 col-md-6 col-xl-4">
+                    <a href="/admin/students" class="admin-module-card">
+                        <div class="admin-module-icon module-blue">♙</div>
+                        <h3>Student Management</h3>
+                        <p>Register students, manage their details and assign buses.</p>
+                        <span class="admin-module-link">Open module →</span>
+                    </a>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-4">
+                    <a href="/admin/drivers" class="admin-module-card">
+                        <div class="admin-module-icon module-purple">♧</div>
+                        <h3>Driver Management</h3>
+                        <p>Create driver accounts and assign drivers to buses.</p>
+                        <span class="admin-module-link">Open module →</span>
+                    </a>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-4">
+                    <a href="/admin/buses" class="admin-module-card">
+                        <div class="admin-module-icon module-green">▰</div>
+                        <h3>Bus Management</h3>
+                        <p>Add buses and manage registration and capacity details.</p>
+                        <span class="admin-module-link">Open module →</span>
+                    </a>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-4">
+                    <a href="/admin/stops" class="admin-module-card">
+                        <div class="admin-module-icon module-orange">⌖</div>
+                        <h3>Stop Management</h3>
+                        <p>Manage bus routes and organize stop sequences.</p>
+                        <span class="admin-module-link">Open module →</span>
+                    </a>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-4">
+                    <a href="/admin/travel-records" class="admin-module-card">
+                        <div class="admin-module-icon module-teal">▤</div>
+                        <h3>Travel Records</h3>
+                        <p>View student boarding and exit history.</p>
+                        <span class="admin-module-link">Open module →</span>
+                    </a>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-4">
+                    <a href="/admin/stop-wise" class="admin-module-card">
+                        <div class="admin-module-icon module-red">⌖</div>
+                        <h3>Stop-wise Students</h3>
+                        <p>View students grouped by their assigned bus stops.</p>
+                        <span class="admin-module-link">Open module →</span>
+                    </a>
+                </div>
+
+                <div class="col-12 col-md-6 col-xl-4">
+                    <a href="/admin/reports" class="admin-module-card">
+                        <div class="admin-module-icon module-blue">▥</div>
+                        <h3>Reports</h3>
+                        <p>View daily travel reports and download CSV files.</p>
+                        <span class="admin-module-link">Open module →</span>
+                    </a>
+                </div>
+
+            </div>
+        </section>
+
+        <footer class="admin-footer">
+            College Bus Entry and Exit Management System
+        </footer>
+
+    </main>
+</div>
+
+<!-- KEEP EXISTING DASHBOARD API FUNCTIONALITY -->
+<script>
+async function loadDashboardStats() {
+    try {
+        const response = await fetch("/api/admin/stats");
+
+        if (!response.ok) {
+            throw new Error("Unable to load dashboard statistics.");
+        }
+
+        const data = await response.json();
+
+        document.getElementById("totalStudents").textContent =
+            data.total_students;
+
+        document.getElementById("totalBuses").textContent =
+            data.total_buses;
+
+        document.getElementById("totalDrivers").textContent =
+            data.total_drivers;
+
+        document.getElementById("todayBoardings").textContent =
+            data.today_boardings;
+
+        document.getElementById("todayExits").textContent =
+            data.today_exits;
+
+        document.getElementById("currentlyOnBus").textContent =
+            data.currently_on_bus;
+
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+loadDashboardStats();
+</script>
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script> -->
+
+</body>
+</html>

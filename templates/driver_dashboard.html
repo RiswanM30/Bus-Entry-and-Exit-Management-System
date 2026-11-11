@@ -1,0 +1,299 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Dashboard</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="driver-dashboard-page">
+
+<div class="driver-dashboard-main">
+
+    <!-- Header -->
+    <header class="driver-dashboard-header">
+        <div>
+            <span class="page-label">DRIVER PORTAL</span>
+            <h1>Driver Dashboard</h1>
+            <p>Manage student boarding and exit activities.</p>
+        </div>
+
+        <div class="driver-header-actions">
+            <a href="/driver/exit" class="driver-exit-link">
+                Student Exit Entry
+            </a>
+            <a href="/logout" class="driver-logout-link">
+                Logout
+            </a>
+        </div>
+    </header>
+
+    <!-- Driver Information -->
+    <section class="driver-info-panel">
+        <div class="driver-info-heading">
+            <div class="driver-info-icon">♙</div>
+            <div>
+                <h2>Driver Information</h2>
+                <p>Your assigned driver and bus details.</p>
+            </div>
+        </div>
+
+        <div class="driver-info-grid">
+            <div class="driver-info-item">
+                <span>Driver Name</span>
+                <strong id="driverName">Loading...</strong>
+            </div>
+
+            <div class="driver-info-item">
+                <span>Assigned Bus</span>
+                <strong id="busNumber">Loading...</strong>
+            </div>
+        </div>
+    </section>
+
+    <!-- Boarding Entry -->
+    <section class="driver-info-panel">
+
+        <div class="driver-info-heading">
+            <div class="driver-info-icon">＋</div>
+            <div>
+                <h2>Student Boarding Entry</h2>
+                <p>Record when a student boards your assigned bus.</p>
+            </div>
+        </div>
+
+        <form id="boardingForm" class="driver-boarding-form">
+
+            <div class="driver-form-field">
+                <label for="studentSelect">Select Student</label>
+                <select id="studentSelect" name="student_id" required>
+                    <option value="">Select Student</option>
+                </select>
+            </div>
+
+            <div class="driver-form-field">
+                <label for="stopSelect">Boarding Stop</label>
+                <select id="stopSelect" name="stop_id" required>
+                    <option value="">Select Boarding Stop</option>
+                </select>
+            </div>
+
+            <div class="driver-form-actions">
+                <button type="submit" id="boardingButton"
+                        class="driver-boarding-button">
+                    Record Boarding
+                </button>
+            </div>
+
+        </form>
+
+        <p id="boardingMessage" class="driver-boarding-message"
+           role="status"></p>
+    </section>
+
+    <!-- Assigned Students -->
+    <section class="driver-info-panel">
+
+        <div class="driver-students-heading">
+            <div>
+                <h2>Students Assigned to This Bus</h2>
+                <p>List of students registered under your assigned bus.</p>
+            </div>
+
+            <span id="studentCount" class="driver-student-count">
+                0 Students
+            </span>
+        </div>
+
+        <div class="driver-student-table-wrapper">
+            <table class="driver-student-table">
+                <thead>
+                    <tr>
+                        <th>Roll Number</th>
+                        <th>Student Name</th>
+                        <th>Department</th>
+                    </tr>
+                </thead>
+
+                <tbody id="studentTable">
+                    <tr>
+                        <td colspan="3" class="driver-table-empty">
+                            Loading students...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <footer class="driver-dashboard-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+const studentSelect = document.getElementById("studentSelect");
+const stopSelect = document.getElementById("stopSelect");
+const studentTable = document.getElementById("studentTable");
+const boardingMessage = document.getElementById("boardingMessage");
+const boardingButton = document.getElementById("boardingButton");
+const boardingForm = document.getElementById("boardingForm");
+
+function showBoardingMessage(message, type) {
+    boardingMessage.textContent = message || "";
+    boardingMessage.className =
+        "driver-boarding-message " + (type || "");
+}
+
+function showStudentMessage(message) {
+    studentTable.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 3;
+    cell.className = "driver-table-empty";
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    studentTable.appendChild(row);
+}
+
+async function loadDriverDashboard() {
+    try {
+        const response = await fetch("/api/driver/dashboard");
+
+        if (!response.ok) {
+            throw new Error("Unable to load driver information.");
+        }
+
+        const data = await response.json();
+
+        document.getElementById("driverName").textContent =
+            data.driver?.driver_name || "-";
+
+        document.getElementById("busNumber").textContent =
+            data.driver?.bus_number || "-";
+
+        // Load students into dropdown
+        studentSelect.replaceChildren(
+            new Option("Select Student", "")
+        );
+
+        const students = data.students || [];
+
+        students.forEach(student => {
+            studentSelect.add(
+                new Option(
+                    `${student.roll_number} - ${student.student_name}`,
+                    student.student_id
+                )
+            );
+        });
+
+        // Load stops into dropdown
+        stopSelect.replaceChildren(
+            new Option("Select Boarding Stop", "")
+        );
+
+        (data.stops || []).forEach(stop => {
+            stopSelect.add(
+                new Option(
+                    `${stop.stop_order} - ${stop.stop_name}`,
+                    stop.stop_id
+                )
+            );
+        });
+
+        // Load assigned student table
+        document.getElementById("studentCount").textContent =
+            `${students.length} ${students.length === 1 ? "Student" : "Students"}`;
+
+        studentTable.replaceChildren();
+
+        if (students.length === 0) {
+            showStudentMessage("No students assigned to this bus.");
+            return;
+        }
+
+        students.forEach(student => {
+            const row = document.createElement("tr");
+
+            [
+                student.roll_number,
+                student.student_name,
+                student.department
+            ].forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "-";
+                row.appendChild(cell);
+            });
+
+            studentTable.appendChild(row);
+        });
+
+    } catch (error) {
+        document.getElementById("driverName").textContent = "Unavailable";
+        document.getElementById("busNumber").textContent = "Unavailable";
+        showStudentMessage(error.message);
+    }
+}
+
+// Record student boarding
+boardingForm.addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const data = {
+        student_id: studentSelect.value,
+        stop_id: stopSelect.value
+    };
+
+    boardingButton.disabled = true;
+    boardingButton.textContent = "Recording...";
+
+    try {
+        const response = await fetch("/api/driver/boarding", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.message || result.error ||
+                "Unable to record boarding."
+            );
+        }
+
+        showBoardingMessage(
+            result.message || "Boarding recorded successfully.",
+            "success"
+        );
+
+        this.reset();
+
+    } catch (error) {
+        showBoardingMessage(error.message, "error");
+    } finally {
+        boardingButton.disabled = false;
+        boardingButton.textContent = "Record Boarding";
+    }
+});
+
+loadDriverDashboard();
+</script>
+
+</body>
+</html>

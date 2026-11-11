@@ -1,0 +1,265 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Reports</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="reports-page">
+
+<div class="reports-main">
+
+    <header class="reports-header">
+        <div>
+            <span class="page-label">ADMINISTRATION</span>
+            <h1>Bus Management Reports</h1>
+            <p>View daily boarding, exit and bus activity reports.</p>
+        </div>
+
+        <a href="/admin/dashboard" class="back-dashboard">
+            ← Back to Dashboard
+        </a>
+    </header>
+
+    <!-- Date Filter -->
+    <section class="reports-panel">
+        <div class="reports-panel-heading">
+            <div class="reports-icon">▤</div>
+            <div>
+                <h2>Generate Report</h2>
+                <p>Select a date to view the bus activity summary.</p>
+            </div>
+        </div>
+
+        <div class="reports-filter">
+            <div class="reports-date-field">
+                <label for="reportDate">Report Date</label>
+                <input type="date" id="reportDate">
+            </div>
+
+            <button type="button" id="generateButton"
+                    class="reports-generate-btn">
+                Generate Report
+            </button>
+
+            <button type="button" id="downloadButton"
+                    class="reports-download-btn">
+                Download CSV
+            </button>
+        </div>
+
+        <p id="reportMessage" class="reports-message" role="status"></p>
+    </section>
+
+    <!-- Summary Cards -->
+    <section class="reports-summary">
+
+        <div class="report-summary-card">
+            <div class="report-summary-top">
+                <span>Total Boardings</span>
+                <span class="report-summary-icon boarding-icon">↗</span>
+            </div>
+            <h2 id="boardings">0</h2>
+            <p>Students boarded</p>
+        </div>
+
+        <div class="report-summary-card">
+            <div class="report-summary-top">
+                <span>Total Exits</span>
+                <span class="report-summary-icon exit-icon">↙</span>
+            </div>
+            <h2 id="exits">0</h2>
+            <p>Students exited</p>
+        </div>
+
+        <div class="report-summary-card">
+            <div class="report-summary-top">
+                <span>Currently on Bus</span>
+                <span class="report-summary-icon bus-icon">▣</span>
+            </div>
+            <h2 id="onBus">0</h2>
+            <p>Active passengers</p>
+        </div>
+
+    </section>
+
+    <!-- Bus-wise Report -->
+    <section class="reports-panel">
+
+        <div class="reports-table-heading">
+            <div>
+                <h2>Bus-wise Report</h2>
+                <p>Boarding and exit details for each bus.</p>
+            </div>
+
+            <span id="busCount" class="reports-count">
+                0 Buses
+            </span>
+        </div>
+
+        <div class="reports-table-wrapper">
+            <table class="reports-table">
+                <thead>
+                    <tr>
+                        <th>Bus Number</th>
+                        <th>Total Boardings</th>
+                        <th>Total Exits</th>
+                        <th>Currently on Bus</th>
+                    </tr>
+                </thead>
+
+                <tbody id="reportTable">
+                    <tr>
+                        <td colspan="4" class="reports-empty">
+                            Loading report...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <footer class="reports-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+const reportDate = document.getElementById("reportDate");
+const reportTable = document.getElementById("reportTable");
+const reportMessage = document.getElementById("reportMessage");
+const generateButton = document.getElementById("generateButton");
+const downloadButton = document.getElementById("downloadButton");
+
+function getToday() {
+    const now = new Date();
+    const localDate = new Date(
+        now.getTime() - now.getTimezoneOffset() * 60000
+    );
+    return localDate.toISOString().split("T")[0];
+}
+
+function showTableMessage(message) {
+    reportTable.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 4;
+    cell.className = "reports-empty";
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    reportTable.appendChild(row);
+}
+
+function showReportMessage(message, type) {
+    reportMessage.textContent = message || "";
+    reportMessage.className =
+        "reports-message " + (type || "");
+}
+
+async function loadReport() {
+    const date = reportDate.value;
+
+    if (!date) {
+        showReportMessage("Please select a date.", "error");
+        return;
+    }
+
+    generateButton.disabled = true;
+    generateButton.textContent = "Generating...";
+    showReportMessage("", "");
+
+    showTableMessage("Loading report...");
+
+    try {
+        const response = await fetch(
+            `/api/admin/reports?date=${encodeURIComponent(date)}`
+        );
+
+        if (!response.ok) {
+            throw new Error("Unable to generate report.");
+        }
+
+        const data = await response.json();
+
+        document.getElementById("boardings").textContent =
+            data.total_boardings ?? 0;
+
+        document.getElementById("exits").textContent =
+            data.total_exits ?? 0;
+
+        document.getElementById("onBus").textContent =
+            data.currently_on_bus ?? 0;
+
+        const buses = data.bus_reports || [];
+
+        document.getElementById("busCount").textContent =
+            `${buses.length} ${buses.length === 1 ? "Bus" : "Buses"}`;
+
+        reportTable.replaceChildren();
+
+        if (buses.length === 0) {
+            showTableMessage("No bus records found for this date.");
+            return;
+        }
+
+        buses.forEach(bus => {
+            const row = document.createElement("tr");
+
+            [
+                bus.bus_number,
+                bus.total_boardings ?? 0,
+                bus.total_exits ?? 0,
+                bus.currently_on_bus ?? 0
+            ].forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = value;
+                row.appendChild(cell);
+            });
+
+            reportTable.appendChild(row);
+        });
+
+        showReportMessage("Report generated successfully.", "success");
+
+    } catch (error) {
+        showTableMessage(error.message);
+        showReportMessage(error.message, "error");
+    } finally {
+        generateButton.disabled = false;
+        generateButton.textContent = "Generate Report";
+    }
+}
+
+function downloadReport() {
+    const date = reportDate.value;
+
+    if (!date) {
+        showReportMessage("Please select a date.", "error");
+        return;
+    }
+
+    window.location.href =
+        `/admin/reports/export?date=${encodeURIComponent(date)}`;
+}
+
+generateButton.addEventListener("click", loadReport);
+downloadButton.addEventListener("click", downloadReport);
+
+reportDate.value = getToday();
+loadReport();
+</script>
+
+</body>
+</html>

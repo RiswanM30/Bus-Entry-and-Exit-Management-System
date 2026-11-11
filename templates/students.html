@@ -1,0 +1,259 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Management</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+    
+</head>
+
+<body class="dashboard-page students-page">
+
+<div class="main-content student-main">
+
+    <!-- PAGE HEADER -->
+    <header class="student-header">
+        <div>
+            <span class="page-label">ADMINISTRATION</span>
+            <h1>Student Management</h1>
+            <p>Register and manage college student accounts.</p>
+        </div>
+
+        <a href="/admin/dashboard" class="back-dashboard">
+            <span>←</span> Back to Dashboard
+        </a>
+    </header>
+
+    <!-- ADD STUDENT FORM -->
+    <section class="student-panel">
+
+        <div class="student-panel-heading">
+            <div>
+                <h2>Add New Student</h2>
+                <p>Enter student details and create a login account.</p>
+            </div>
+            <div class="student-panel-icon">＋</div>
+        </div>
+
+        <form id="studentForm" class="student-form">
+
+            <div class="student-field">
+                <label for="rollNumber">Roll Number</label>
+                <input id="rollNumber"
+                       name="roll_number"
+                       type="text"
+                       placeholder="Enter roll number"
+                       required>
+            </div>
+
+            <div class="student-field">
+                <label for="studentName">Student Name</label>
+                <input id="studentName"
+                       name="student_name"
+                       type="text"
+                       placeholder="Enter student name"
+                       required>
+            </div>
+
+            <div class="student-field">
+                <label for="department">Department</label>
+                <input id="department"
+                       name="department"
+                       type="text"
+                       placeholder="Enter department"
+                       required>
+            </div>
+
+            <div class="student-field">
+                <label for="phone">Phone Number</label>
+                <input id="phone"
+                       name="phone"
+                       type="tel"
+                       placeholder="Enter phone number"
+                       required>
+            </div>
+
+            <div class="student-field">
+                <label for="studentBus">Assign Bus</label>
+                <select name="bus_id" id="studentBus" required>
+                    <option value="">Select Bus</option>
+                </select>
+            </div>
+
+            <div class="student-field">
+                <label for="studentUsername">Student Username</label>
+                <input id="studentUsername"
+                       name="username"
+                       type="text"
+                       placeholder="Create username"
+                       required>
+            </div>
+
+            <div class="student-field student-password-field">
+                <label for="studentPassword">Password</label>
+                <input id="studentPassword"
+                       name="password"
+                       type="password"
+                       minlength="8"
+                       placeholder="Minimum 8 characters"
+                       required>
+            </div>
+
+            <div class="student-form-actions">
+                <button type="submit" class="student-submit">
+                    Create Student Account
+                </button>
+            </div>
+
+        </form>
+
+        <p id="studentMessage" class="student-message" aria-live="polite"></p>
+
+    </section>
+
+    <!-- REGISTERED STUDENTS -->
+    <section class="student-panel registered-panel">
+
+        <div class="student-panel-heading">
+            <div>
+                <h2>Registered Students</h2>
+                <p>View the students registered in the system.</p>
+            </div>
+
+            <div class="student-count-label">
+                STUDENT RECORDS
+            </div>
+        </div>
+
+        <div class="student-table-wrapper">
+            <table class="student-table">
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Roll Number</th>
+                        <th>Name</th>
+                        <th>Department</th>
+                        <th>Phone</th>
+                        <th>Bus</th>
+                    </tr>
+                </thead>
+
+                <tbody id="studentTable"></tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <footer class="student-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+async function loadBuses() {
+    const response = await fetch("/api/admin/buses");
+
+    if (!response.ok) {
+        document.getElementById("studentMessage").textContent =
+            "Unable to load buses. Please check your login.";
+        return;
+    }
+
+    const buses = await response.json();
+    const select = document.getElementById("studentBus");
+
+    select.replaceChildren();
+
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "Select Bus";
+    select.appendChild(defaultOption);
+
+    buses.forEach(bus => {
+        const option = document.createElement("option");
+        option.value = bus.bus_id;
+        option.textContent = bus.bus_number;
+        select.appendChild(option);
+    });
+}
+
+async function loadStudents() {
+    const response = await fetch("/api/admin/students");
+
+    if (!response.ok) {
+        document.getElementById("studentMessage").textContent =
+            "Unable to load student records.";
+        return;
+    }
+
+    const students = await response.json();
+    const table = document.getElementById("studentTable");
+
+    table.replaceChildren();
+
+    students.forEach(student => {
+        const row = document.createElement("tr");
+
+        [
+            student.student_id,
+            student.roll_number,
+            student.student_name,
+            student.department,
+            student.phone,
+            student.bus_number || "Not assigned"
+        ].forEach(value => {
+            const cell = document.createElement("td");
+            cell.textContent = value ?? "";
+            row.appendChild(cell);
+        });
+
+        table.appendChild(row);
+    });
+}
+
+document.getElementById("studentForm").addEventListener(
+    "submit",
+    async function(e) {
+
+        e.preventDefault();
+
+        const data = Object.fromEntries(
+            new FormData(this).entries()
+        );
+
+        const response = await fetch("/api/admin/students", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        const message = document.getElementById("studentMessage");
+
+        message.textContent = result.message || result.error;
+        message.className = response.ok
+            ? "student-message success"
+            : "student-message error";
+
+        if (response.ok) {
+            this.reset();
+            await loadStudents();
+        }
+    }
+);
+
+loadBuses();
+loadStudents();
+</script>
+
+</body>
+</html>

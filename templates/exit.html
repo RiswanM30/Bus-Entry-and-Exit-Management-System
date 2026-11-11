@@ -1,0 +1,305 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Exit Entry</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="exit-page">
+
+<div class="exit-main">
+
+    <!-- Header -->
+    <header class="exit-header">
+        <div>
+            <span class="page-label">DRIVER PORTAL</span>
+            <h1>Student Exit Entry</h1>
+            <p>Record when students leave your assigned bus.</p>
+        </div>
+
+        <a href="/driver/dashboard" class="back-dashboard">
+            ← Back to Dashboard
+        </a>
+    </header>
+
+    <!-- Exit Form -->
+    <section class="exit-panel">
+
+        <div class="exit-panel-heading">
+            <div class="exit-icon">↙</div>
+            <div>
+                <h2>Record Student Exit</h2>
+                <p>Select an active boarding record and its exit stop.</p>
+            </div>
+        </div>
+
+        <form id="exitForm" class="exit-form">
+
+            <div class="exit-field">
+                <label for="entrySelect">
+                    Select Student Boarding Record
+                </label>
+
+                <select id="entrySelect" required>
+                    <option value="">Select Student</option>
+                </select>
+            </div>
+
+            <div class="exit-field">
+                <label for="exitStop">Select Exit Stop</label>
+
+                <select id="exitStop" required>
+                    <option value="">Select Exit Stop</option>
+                </select>
+            </div>
+
+            <div class="exit-form-actions">
+                <button type="submit" id="exitButton"
+                        class="exit-submit">
+                    Record Student Exit
+                </button>
+            </div>
+
+        </form>
+
+        <p id="exitMessage" class="exit-message" role="status"></p>
+
+    </section>
+
+    <!-- Active Students -->
+    <section class="exit-panel">
+
+        <div class="exit-records-heading">
+            <div>
+                <h2>Students Currently on Bus</h2>
+                <p>Students who have boarded but have not yet exited.</p>
+            </div>
+
+            <span id="activeCount" class="exit-count">
+                0 Students
+            </span>
+        </div>
+
+        <div class="exit-table-wrapper">
+            <table class="exit-table">
+                <thead>
+                    <tr>
+                        <th>Roll Number</th>
+                        <th>Student Name</th>
+                        <th>Boarding Stop</th>
+                        <th>Boarding Time</th>
+                    </tr>
+                </thead>
+
+                <tbody id="activeTable">
+                    <tr>
+                        <td colspan="4" class="exit-empty">
+                            Loading active students...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <footer class="exit-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+const entrySelect = document.getElementById("entrySelect");
+const stopSelect = document.getElementById("exitStop");
+const activeTable = document.getElementById("activeTable");
+const exitMessage = document.getElementById("exitMessage");
+const exitButton = document.getElementById("exitButton");
+const exitForm = document.getElementById("exitForm");
+const activeCount = document.getElementById("activeCount");
+
+function showExitMessage(message, type) {
+    exitMessage.textContent = message || "";
+    exitMessage.className = "exit-message " + (type || "");
+}
+
+function showEmptyRow(message) {
+    activeTable.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 4;
+    cell.className = "exit-empty";
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    activeTable.appendChild(row);
+}
+
+async function loadExitData() {
+
+    entrySelect.replaceChildren(
+        new Option("Select Student", "")
+    );
+
+    stopSelect.replaceChildren(
+        new Option("Select Exit Stop", "")
+    );
+
+    activeTable.replaceChildren();
+    activeCount.textContent = "0 Students";
+
+    try {
+        // Load driver dashboard information and assigned stops
+        const dashboardResponse = await fetch(
+            "/api/driver/dashboard"
+        );
+
+        if (!dashboardResponse.ok) {
+            throw new Error("Unable to load driver information.");
+        }
+
+        const dashboard = await dashboardResponse.json();
+
+        // Load active boarding records
+        const activeResponse = await fetch(
+            "/api/driver/active-boardings"
+        );
+
+        if (!activeResponse.ok) {
+            throw new Error("Unable to load active boarding records.");
+        }
+
+        const records = await activeResponse.json();
+
+        // Load assigned bus stops
+        (dashboard.stops || []).forEach(stop => {
+            stopSelect.add(
+                new Option(
+                    `${stop.stop_order} - ${stop.stop_name}`,
+                    stop.stop_id
+                )
+            );
+        });
+
+        // Display active student count
+        activeCount.textContent =
+            `${records.length} ${records.length === 1 ? "Student" : "Students"}`;
+
+        if (records.length === 0) {
+            showEmptyRow("No students are currently on the bus.");
+            showExitMessage("No active boarding records found.", "info");
+            return;
+        }
+
+        records.forEach(record => {
+
+            // Student selection dropdown
+            entrySelect.add(
+                new Option(
+                    `${record.roll_number} - ${record.student_name} (Boarded at ${record.boarding_stop})`,
+                    record.entry_id
+                )
+            );
+
+            // Student table
+            const row = document.createElement("tr");
+
+            [
+                record.roll_number,
+                record.student_name,
+                record.boarding_stop,
+                record.entry_time
+            ].forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "-";
+                row.appendChild(cell);
+            });
+
+            activeTable.appendChild(row);
+        });
+
+        showExitMessage(
+            `${records.length} active boarding record(s) found.`,
+            "info"
+        );
+
+    } catch (error) {
+        console.error("Exit page error:", error);
+        showExitMessage(error.message, "error");
+        showEmptyRow(error.message);
+    }
+}
+
+// Record student exit
+exitForm.addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const entryId = entrySelect.value;
+    const exitStopId = stopSelect.value;
+
+    if (!entryId || !exitStopId) {
+        showExitMessage(
+            "Please select a student and exit stop.",
+            "error"
+        );
+        return;
+    }
+
+    exitButton.disabled = true;
+    exitButton.textContent = "Recording...";
+
+    try {
+        const response = await fetch("/api/driver/exit", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                entry_id: entryId,
+                exit_stop_id: exitStopId
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.message || result.error ||
+                "Unable to record student exit."
+            );
+        }
+
+        showExitMessage(
+            result.message || "Student exit recorded successfully.",
+            "success"
+        );
+
+        exitForm.reset();
+
+        // Refresh active students after successful exit
+        await loadExitData();
+
+    } catch (error) {
+        console.error("Exit submission error:", error);
+        showExitMessage(error.message, "error");
+    } finally {
+        exitButton.disabled = false;
+        exitButton.textContent = "Record Student Exit";
+    }
+});
+
+// Load records when page opens
+loadExitData();
+</script>
+
+</body>
+</html>

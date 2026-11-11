@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Travel Records</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="dashboard-page records-page">
+
+<div class="main-content records-main">
+
+    <!-- PAGE HEADER -->
+    <header class="records-header">
+        <div>
+            <span class="page-label">ADMINISTRATION</span>
+            <h1>Student Travel Records</h1>
+            <p>View and filter student boarding and exit records.</p>
+        </div>
+
+        <a href="/admin/dashboard" class="back-dashboard">
+            ← Back to Dashboard
+        </a>
+    </header>
+
+    <!-- FILTER PANEL -->
+    <section class="records-panel">
+
+        <div class="records-panel-heading">
+            <div>
+                <h2>Filter Records</h2>
+                <p>Find records using bus, student or travel date.</p>
+            </div>
+        </div>
+
+        <div class="records-filters">
+
+            <div class="records-filter-field">
+                <label for="busFilter">Select Bus</label>
+                <select id="busFilter">
+                    <option value="">All Buses</option>
+                </select>
+            </div>
+
+            <div class="records-filter-field">
+                <label for="searchInput">Student Search</label>
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Student name or roll number">
+            </div>
+
+            <div class="records-filter-field">
+                <label for="dateFilter">Travel Date</label>
+                <input type="date" id="dateFilter">
+            </div>
+
+            <div class="records-filter-actions">
+                <button type="button"
+                        class="records-search-btn"
+                        onclick="loadRecords()">
+                    Search
+                </button>
+
+                <button type="button"
+                        class="records-clear-btn"
+                        onclick="clearFilters()">
+                    Clear
+                </button>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- RECORDS TABLE -->
+    <section class="records-panel">
+
+        <div class="records-panel-heading records-table-heading">
+            <div>
+                <h2>Travel History</h2>
+                <p id="recordCount">Loading records...</p>
+            </div>
+
+            <span class="records-table-label">TRAVEL RECORDS</span>
+        </div>
+
+        <div class="records-table-wrapper">
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th>Roll Number</th>
+                        <th>Student Name</th>
+                        <th>Bus</th>
+                        <th>Driver</th>
+                        <th>Boarding Stop</th>
+                        <th>Boarding Time</th>
+                        <th>Exit Stop</th>
+                        <th>Exit Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody id="recordsTable">
+                    <tr>
+                        <td colspan="9">Loading records...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <footer class="records-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+async function loadRecords() {
+    const bus = document.getElementById("busFilter").value;
+    const search = document.getElementById("searchInput").value.trim();
+    const date = document.getElementById("dateFilter").value;
+
+    const params = new URLSearchParams();
+
+    if (bus) params.append("bus_id", bus);
+    if (search) params.append("search", search);
+    if (date) params.append("date", date);
+
+    const table = document.getElementById("recordsTable");
+    const count = document.getElementById("recordCount");
+
+    table.replaceChildren();
+
+    const loadingRow = document.createElement("tr");
+    const loadingCell = document.createElement("td");
+    loadingCell.colSpan = 9;
+    loadingCell.textContent = "Loading records...";
+    loadingRow.appendChild(loadingCell);
+    table.appendChild(loadingRow);
+
+    try {
+        const response = await fetch(
+            `/api/admin/travel-records?${params.toString()}`
+        );
+
+        if (!response.ok) {
+            throw new Error("Could not load travel records.");
+        }
+
+        const data = await response.json();
+
+        // Load bus filter options once.
+        const busFilter = document.getElementById("busFilter");
+
+        if (busFilter.options.length <= 1) {
+            data.buses.forEach(busItem => {
+                const option = document.createElement("option");
+                option.value = busItem.bus_id;
+                option.textContent = busItem.bus_number;
+                busFilter.appendChild(option);
+            });
+        }
+
+        count.textContent = `Total records: ${data.records.length}`;
+
+        table.replaceChildren();
+
+        if (data.records.length === 0) {
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+
+            cell.colSpan = 9;
+            cell.textContent = "No travel records found.";
+            cell.className = "records-empty";
+
+            row.appendChild(cell);
+            table.appendChild(row);
+            return;
+        }
+
+        data.records.forEach(record => {
+            const row = document.createElement("tr");
+
+            const values = [
+                record.roll_number,
+                record.student_name,
+                record.bus_number,
+                record.driver_name,
+                record.boarding_stop,
+                record.entry_time,
+                record.exit_stop || "-",
+                record.exit_time || "-",
+                record.travel_status
+            ];
+
+            values.forEach((value, index) => {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "-";
+
+                if (index === 8) {
+                    cell.className =
+                        record.travel_status === "On Bus"
+                            ? "record-status status-on"
+                            : "record-status status-completed";
+                }
+
+                row.appendChild(cell);
+            });
+
+            table.appendChild(row);
+        });
+
+    } catch (error) {
+        table.replaceChildren();
+
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+
+        cell.colSpan = 9;
+        cell.textContent = error.message;
+        cell.className = "records-error";
+
+        row.appendChild(cell);
+        table.appendChild(row);
+
+        count.textContent = "Unable to load records.";
+    }
+}
+
+function clearFilters() {
+    document.getElementById("busFilter").value = "";
+    document.getElementById("searchInput").value = "";
+    document.getElementById("dateFilter").value = "";
+
+    loadRecords();
+}
+
+loadRecords();
+</script>
+
+</body>
+</html>

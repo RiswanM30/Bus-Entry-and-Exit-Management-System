@@ -1,0 +1,327 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="student-dashboard-page">
+
+<div class="student-dashboard-main">
+
+    <!-- Header -->
+    <header class="student-dashboard-header">
+        <div>
+            <span class="page-label">STUDENT PORTAL</span>
+            <h1>Student Dashboard</h1>
+            <p>View your profile, bus details and travel history.</p>
+        </div>
+
+        <a href="/logout" class="student-logout">
+            Logout
+        </a>
+    </header>
+
+    <!-- Welcome -->
+    <section class="student-welcome">
+        <div>
+            <span>WELCOME BACK</span>
+            <h2 id="welcomeName">Loading...</h2>
+            <p>Here is your college bus travel information.</p>
+        </div>
+        <div class="student-welcome-icon">♙</div>
+    </section>
+
+    <!-- Profile and Bus Details -->
+    <div class="student-overview-grid">
+
+        <section class="student-info-panel">
+            <div class="student-section-heading">
+                <div class="student-section-icon">♙</div>
+                <div>
+                    <h2>My Profile</h2>
+                    <p>Your personal and academic details.</p>
+                </div>
+            </div>
+
+            <div class="student-detail-list">
+
+                <div class="student-detail-item">
+                    <span>Student Name</span>
+                    <strong id="studentName">Loading...</strong>
+                </div>
+
+                <div class="student-detail-item">
+                    <span>Roll Number</span>
+                    <strong id="rollNumber">-</strong>
+                </div>
+
+                <div class="student-detail-item">
+                    <span>Department</span>
+                    <strong id="department">-</strong>
+                </div>
+
+                <div class="student-detail-item">
+                    <span>Phone Number</span>
+                    <strong id="phone">-</strong>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="student-info-panel">
+            <div class="student-section-heading">
+                <div class="student-section-icon">▣</div>
+                <div>
+                    <h2>My Bus Details</h2>
+                    <p>Your assigned college bus information.</p>
+                </div>
+            </div>
+
+            <div class="student-bus-card">
+                <span>ASSIGNED BUS</span>
+                <h2 id="busNumber">Loading...</h2>
+                <p id="registrationNumber">Loading registration number...</p>
+            </div>
+
+        </section>
+
+    </div>
+
+    <!-- Bus Route -->
+    <section class="student-info-panel">
+
+        <div class="student-section-heading">
+            <div class="student-section-icon">⌖</div>
+            <div>
+                <h2>My Bus Route</h2>
+                <p>Stops followed by your assigned bus.</p>
+            </div>
+        </div>
+
+        <div class="student-table-wrapper">
+            <table class="student-dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Stop Order</th>
+                        <th>Stop Name</th>
+                    </tr>
+                </thead>
+
+                <tbody id="stopTable">
+                    <tr>
+                        <td colspan="2" class="student-table-empty">
+                            Loading bus stops...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <!-- Travel History -->
+    <section class="student-info-panel">
+
+        <div class="student-history-heading">
+            <div class="student-section-heading">
+                <div class="student-section-icon">◷</div>
+                <div>
+                    <h2>My Travel History</h2>
+                    <p>Your previous boarding and exit records.</p>
+                </div>
+            </div>
+
+            <span id="historyCount" class="student-history-count">
+                0 Records
+            </span>
+        </div>
+
+        <div class="student-table-wrapper">
+            <table class="student-dashboard-table history-table">
+                <thead>
+                    <tr>
+                        <th>Boarding Date & Time</th>
+                        <th>Boarding Stop</th>
+                        <th>Exit Date & Time</th>
+                        <th>Exit Stop</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody id="historyTable">
+                    <tr>
+                        <td colspan="5" class="student-table-empty">
+                            Loading travel history...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <p id="studentMessage" class="student-dashboard-message"
+       role="status"></p>
+
+    <footer class="student-dashboard-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+const studentMessage = document.getElementById("studentMessage");
+const stopTable = document.getElementById("stopTable");
+const historyTable = document.getElementById("historyTable");
+
+function showEmptyRow(table, columns, message) {
+    table.replaceChildren();
+
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = columns;
+    cell.className = "student-table-empty";
+    cell.textContent = message;
+
+    row.appendChild(cell);
+    table.appendChild(row);
+}
+
+async function loadStudentDashboard() {
+
+    try {
+        const response = await fetch("/api/student/dashboard");
+
+        if (!response.ok) {
+            throw new Error(
+                "Unable to load student details. Please log in again."
+            );
+        }
+
+        const data = await response.json();
+
+        const student = data.student || {};
+        const stops = data.stops || [];
+        const history = data.history || [];
+
+        // STUDENT PROFILE
+
+        document.getElementById("studentName").textContent =
+            student.student_name || "-";
+
+        document.getElementById("welcomeName").textContent =
+            student.student_name || "Student";
+
+        document.getElementById("rollNumber").textContent =
+            student.roll_number || "-";
+
+        document.getElementById("department").textContent =
+            student.department || "-";
+
+        document.getElementById("phone").textContent =
+            student.phone || "-";
+
+        // BUS DETAILS
+
+        document.getElementById("busNumber").textContent =
+            student.bus_number || "Not assigned";
+
+        document.getElementById("registrationNumber").textContent =
+            student.registration_number || "Registration not available";
+
+        // BUS ROUTE
+
+        stopTable.replaceChildren();
+
+        if (stops.length === 0) {
+            showEmptyRow(
+                stopTable,
+                2,
+                "No bus stops registered."
+            );
+        } else {
+            stops.forEach(stop => {
+                const row = document.createElement("tr");
+
+                [stop.stop_order, stop.stop_name].forEach(value => {
+                    const cell = document.createElement("td");
+                    cell.textContent = value ?? "-";
+                    row.appendChild(cell);
+                });
+
+                stopTable.appendChild(row);
+            });
+        }
+
+        // TRAVEL HISTORY
+
+        historyTable.replaceChildren();
+
+        document.getElementById("historyCount").textContent =
+            `${history.length} ${history.length === 1 ? "Record" : "Records"}`;
+
+        if (history.length === 0) {
+            showEmptyRow(
+                historyTable,
+                5,
+                "No travel records available."
+            );
+        } else {
+            history.forEach(record => {
+
+                const row = document.createElement("tr");
+
+                const values = [
+                    record.entry_time || "-",
+                    record.boarding_stop || "-",
+                    record.exit_time || "Not exited",
+                    record.exit_stop || "Not exited"
+                ];
+
+                values.forEach(value => {
+                    const cell = document.createElement("td");
+                    cell.textContent = value;
+                    row.appendChild(cell);
+                });
+
+                // Travel status
+                const statusCell = document.createElement("td");
+                const badge = document.createElement("span");
+
+                const completed = Boolean(record.exit_time);
+
+                badge.textContent = completed ? "Completed" : "On Bus";
+                badge.className = completed
+                    ? "student-status completed"
+                    : "student-status on-bus";
+
+                statusCell.appendChild(badge);
+                row.appendChild(statusCell);
+
+                historyTable.appendChild(row);
+            });
+        }
+
+    } catch (error) {
+        studentMessage.textContent = error.message;
+        studentMessage.className = "student-dashboard-message error";
+
+        showEmptyRow(stopTable, 2, "Unable to load bus stops.");
+        showEmptyRow(historyTable, 5, "Unable to load travel history.");
+    }
+}
+
+loadStudentDashboard();
+</script>
+
+</body>
+</html>

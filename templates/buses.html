@@ -1,0 +1,234 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Management</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="dashboard-page buses-page">
+
+<div class="main-content bus-main">
+
+    <!-- PAGE HEADER -->
+    <header class="bus-header">
+        <div>
+            <span class="page-label">ADMINISTRATION</span>
+            <h1>Bus Management</h1>
+            <p>Add buses and manage their registration and capacity details.</p>
+        </div>
+
+        <a href="/admin/dashboard" class="back-dashboard">
+            ← Back to Dashboard
+        </a>
+    </header>
+
+    <!-- ADD BUS FORM -->
+    <section class="bus-panel">
+
+        <div class="bus-panel-heading">
+            <div>
+                <h2>Add New Bus</h2>
+                <p>Enter the bus information to register a new bus.</p>
+            </div>
+            <div class="bus-panel-icon">＋</div>
+        </div>
+
+        <form id="busForm" class="bus-form">
+
+            <div class="bus-field">
+                <label for="busNumber">Bus Number</label>
+                <input id="busNumber"
+                       name="bus_number"
+                       type="text"
+                       placeholder="Example: BUS 01"
+                       required>
+            </div>
+
+            <div class="bus-field">
+                <label for="registrationNumber">Registration Number</label>
+                <input id="registrationNumber"
+                       name="registration_number"
+                       type="text"
+                       placeholder="Enter registration number"
+                       required>
+            </div>
+
+            <div class="bus-field">
+                <label for="busCapacity">Bus Capacity</label>
+                <input id="busCapacity"
+                       name="capacity"
+                       type="number"
+                       min="1"
+                       placeholder="Enter seating capacity"
+                       required>
+            </div>
+
+            <div class="bus-form-actions">
+                <button type="submit" id="addBusButton" class="bus-submit">
+                    Add Bus
+                </button>
+            </div>
+
+        </form>
+
+        <p id="busMessage" class="bus-message" aria-live="polite"></p>
+
+    </section>
+
+    <!-- REGISTERED BUSES -->
+    <section class="bus-panel registered-bus-panel">
+
+        <div class="bus-panel-heading">
+            <div>
+                <h2>Registered Buses</h2>
+                <p>View all buses registered in the system.</p>
+            </div>
+
+            <span class="bus-record-label">BUS RECORDS</span>
+        </div>
+
+        <div class="bus-table-wrapper">
+            <table class="bus-table">
+                <thead>
+                    <tr>
+                        <th>Bus ID</th>
+                        <th>Bus Number</th>
+                        <th>Registration Number</th>
+                        <th>Capacity</th>
+                    </tr>
+                </thead>
+
+                <tbody id="busTable"></tbody>
+            </table>
+        </div>
+
+    </section>
+
+    <footer class="bus-footer">
+        College Bus Entry and Exit Management System
+    </footer>
+
+</div>
+
+<script>
+async function loadBuses() {
+    const table = document.getElementById("busTable");
+
+    try {
+        const response = await fetch("/api/admin/buses");
+
+        if (!response.ok) {
+            throw new Error("Unable to load bus records.");
+        }
+
+        const buses = await response.json();
+
+        table.replaceChildren();
+
+        if (buses.length === 0) {
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+
+            cell.colSpan = 4;
+            cell.textContent = "No buses registered yet.";
+            cell.className = "bus-empty";
+
+            row.appendChild(cell);
+            table.appendChild(row);
+            return;
+        }
+
+        buses.forEach(bus => {
+            const row = document.createElement("tr");
+
+            [
+                bus.bus_id,
+                bus.bus_number,
+                bus.registration_number,
+                bus.capacity
+            ].forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = value ?? "";
+                row.appendChild(cell);
+            });
+
+            table.appendChild(row);
+        });
+
+    } catch (error) {
+        table.replaceChildren();
+
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+
+        cell.colSpan = 4;
+        cell.textContent = error.message;
+        cell.className = "bus-error";
+
+        row.appendChild(cell);
+        table.appendChild(row);
+    }
+}
+
+document.getElementById("busForm").addEventListener(
+    "submit",
+    async function(e) {
+        e.preventDefault();
+
+        const message = document.getElementById("busMessage");
+        const button = document.getElementById("addBusButton");
+
+        const data = Object.fromEntries(
+            new FormData(this).entries()
+        );
+
+        button.disabled = true;
+        button.textContent = "Adding Bus...";
+
+        try {
+            const response = await fetch("/api/admin/buses", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            message.textContent =
+                result.message || result.error || "Unable to add bus.";
+
+            message.className = response.ok
+                ? "bus-message success"
+                : "bus-message error";
+
+            if (response.ok) {
+                this.reset();
+                await loadBuses();
+            }
+
+        } catch (error) {
+            message.textContent = error.message;
+            message.className = "bus-message error";
+
+        } finally {
+            button.disabled = false;
+            button.textContent = "Add Bus";
+        }
+    }
+);
+
+loadBuses();
+</script>
+
+</body>
+</html>

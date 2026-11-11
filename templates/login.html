@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Bus Management - Login</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+
+<body class="login-page-new">
+
+<div class="login-wrapper">
+
+    <!-- Left Information Section -->
+    <section class="login-intro">
+        <div class="login-brand">
+            <div class="login-brand-icon">CB</div>
+            <span>COLLEGE BUS MANAGEMENT</span>
+        </div>
+
+        <div class="login-intro-content">
+            <span class="login-tag">SMART TRANSPORT SYSTEM</span>
+
+            <h1>College Bus<br>Entry & Exit<br>Management</h1>
+
+            <p>
+                A simple and organized platform to manage student
+                boarding, bus exits and travel information.
+            </p>
+        </div>
+
+        <div class="login-intro-footer">
+            College Bus Entry and Exit Management System
+        </div>
+    </section>
+
+    <!-- Right Login Section -->
+    <section class="login-form-section">
+
+        <div class="login-card-new">
+
+            <div class="login-heading">
+                <span class="login-welcome">WELCOME BACK</span>
+                <h2>Sign in to your account</h2>
+                <p>Select your account type and enter your login details.</p>
+            </div>
+
+            <p class="login-role-label">Select Login Type</p>
+
+            <div class="login-role-options">
+
+                <button type="button"
+                        class="login-role-option active"
+                        data-role="admin">
+                    <span class="login-role-symbol">A</span>
+                    <span>Admin</span>
+                </button>
+
+                <button type="button"
+                        class="login-role-option"
+                        data-role="driver">
+                    <span class="login-role-symbol">D</span>
+                    <span>Driver</span>
+                </button>
+
+                <button type="button"
+                        class="login-role-option"
+                        data-role="student">
+                    <span class="login-role-symbol">S</span>
+                    <span>Student</span>
+                </button>
+
+            </div>
+
+            <form id="loginForm">
+
+                <div class="login-input-group">
+                    <label for="username">Username / Roll Number</label>
+
+                    <input
+                        type="text"
+                        id="username"
+                        placeholder="Enter your username"
+                        autocomplete="username"
+                        required
+                    >
+                </div>
+
+                <div class="login-input-group">
+                    <label for="password">Password</label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        required
+                    >
+                </div>
+
+                <button type="submit"
+                        class="login-submit-button"
+                        id="loginButton">
+                    Sign In
+                </button>
+
+            </form>
+
+            <p id="message" class="login-message" role="status"></p>
+
+            <div class="login-security-note">
+                Authorized users only. Please use your registered login details.
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+<script>
+let selectedRole = "admin";
+
+const roleButtons = document.querySelectorAll(".login-role-option");
+const loginForm = document.getElementById("loginForm");
+const message = document.getElementById("message");
+const loginButton = document.getElementById("loginButton");
+
+// Select account type
+roleButtons.forEach(button => {
+
+    button.addEventListener("click", () => {
+
+        roleButtons.forEach(item => {
+            item.classList.remove("active");
+        });
+
+        button.classList.add("active");
+        selectedRole = button.dataset.role;
+
+        message.textContent = "";
+        message.className = "login-message";
+    });
+
+});
+
+// Login submission
+loginForm.addEventListener("submit", async event => {
+
+    event.preventDefault();
+
+    message.textContent = "Checking login details...";
+    message.className = "login-message info";
+
+    loginButton.disabled = true;
+    loginButton.textContent = "Signing In...";
+
+    try {
+
+        const response = await fetch("/api/login", {
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                username: document.getElementById("username").value.trim(),
+                password: document.getElementById("password").value,
+                role: selectedRole
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.error || "Invalid username or password."
+            );
+        }
+
+        const destinations = {
+            admin: "/admin/dashboard",
+            driver: "/driver/dashboard",
+            student: "/student/dashboard"
+        };
+
+        const destination = destinations[result.role];
+
+        if (!destination) {
+            throw new Error("Invalid login role returned.");
+        }
+
+        window.location.href = destination;
+
+    } catch (error) {
+
+        message.textContent = error.message;
+        message.className = "login-message error";
+
+    } finally {
+
+        loginButton.disabled = false;
+        loginButton.textContent = "Sign In";
+
+    }
+
+});
+</script>
+
+</body>
+</html>
